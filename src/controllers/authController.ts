@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { registerSchema, loginSchema } from '../validators/authValidators.js';
 import { userService } from '../services/userService.js';
+import { jwtService } from '../services/jwtService.js';
 
 export class AuthController {
   /**
@@ -103,10 +104,15 @@ export class AuthController {
 
       // Return success response (exclude password)
       const userWithoutPassword = userService.getUserWithoutPassword(user);
+      
+      // Generate JWT token
+      const token = jwtService.generateToken(userWithoutPassword);
+
       res.status(200).json({
         success: true,
         message: 'Login successful',
         user: userWithoutPassword,
+        token,
       });
     } catch (error) {
       console.error('Login error:', error);

@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import authRoutes from './routes/auth.js';
+import userRoutes from './routes/user.js';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is not set');
@@ -23,6 +24,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
