@@ -8,7 +8,46 @@ const router = Router();
 // All routes in this file require authentication
 router.use(authenticate);
 
-// GET /api/user/profile - Get current user profile
+/**
+ * @swagger
+ * /api/user/profile:
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/profile', async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
@@ -45,7 +84,43 @@ router.get('/profile', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/user/admin-only - Admin only route example
+/**
+ * @swagger
+ * /api/user/admin-only:
+ *   get:
+ *     summary: Admin-only endpoint example
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Success - Admin access granted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: This is an admin-only route
+ *                 user:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Insufficient permissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/admin-only', authorize('admin'), (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
