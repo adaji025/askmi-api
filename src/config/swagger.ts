@@ -7,7 +7,29 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'AskMI Backend API',
       version: '1.0.0',
-      description: 'API documentation for AskMI Backend - User authentication and management system',
+      description: `API documentation for AskMI Backend - User authentication and management system
+
+## Role-Based Access Control
+
+### Admin
+- Full access to all endpoints
+- Can manage all users (CRUD)
+- Can access system settings and analytics
+- Bypasses all ownership checks
+
+### Influencer
+- Can view and edit own profile
+- Can manage own content (full CRUD)
+- Can view others' content (read-only)
+- Cannot view other users' profiles
+- Cannot access admin endpoints
+
+### User
+- Can view and edit own profile
+- Can create, edit, and delete own content
+- Can view others' content (read-only)
+- Cannot modify others' content or profiles
+- Cannot access admin endpoints`,
       contact: {
         name: 'API Support',
       },
@@ -58,6 +80,11 @@ const options: swaggerJsdoc.Options = {
               type: 'string',
               enum: ['user', 'admin', 'influencer'],
               description: 'User role',
+            },
+            isApproved: {
+              type: 'boolean',
+              description: 'Account approval status. Influencers start as false and require admin approval.',
+              example: true,
             },
             createdAt: {
               type: 'string',

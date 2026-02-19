@@ -45,10 +45,14 @@ export class AuthController {
         role,
       });
 
-      // Return success response
+      // Return success response with appropriate message for influencers
+      const message = user.role === 'influencer' && !user.isApproved
+        ? 'User registered successfully. Your account is pending approval. You will be notified once an admin approves your account.'
+        : 'User registered successfully';
+
       res.status(201).json({
         success: true,
-        message: 'User registered successfully',
+        message,
         user,
       });
     } catch (error) {

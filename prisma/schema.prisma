@@ -23,6 +23,7 @@ model User {
   fullName    String
   password    String
   role        UserRole @default(user)
+  isApproved  Boolean  @default(true) // Influencers start as false, others as true
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

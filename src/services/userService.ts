@@ -18,6 +18,7 @@ export interface UserWithoutPassword {
   company: string | null;
   fullName: string;
   role: UserRole;
+  isApproved: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +50,9 @@ export class UserService {
     const hashedPassword = await bcrypt.hash(data.password, saltRounds);
 
     // Create user
+    // Influencers start as unapproved, others are approved by default
+    const isApproved = data.role !== 'influencer';
+    
     const user = await prisma.user.create({
       data: {
         email: data.email,
@@ -57,6 +61,7 @@ export class UserService {
         fullName: data.fullName,
         password: hashedPassword,
         role: data.role || 'user',
+        isApproved,
       },
       select: {
         id: true,
@@ -65,6 +70,7 @@ export class UserService {
         company: true,
         fullName: true,
         role: true,
+        isApproved: true,
         createdAt: true,
         updatedAt: true,
       },
