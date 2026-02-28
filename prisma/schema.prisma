@@ -15,6 +15,11 @@ enum UserRole {
   influencer
 }
 
+enum SurveySource {
+  creating_new
+  use_existing_survey
+}
+
 model User {
   id          String   @id @default(cuid())
   email       String   @unique
@@ -27,7 +32,27 @@ model User {
   isApproved  Boolean  @default(true) // Influencers start as false, others as true
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  campaigns   Campaign[]
 
   @@map("users")
 }
 
+model Campaign {
+  id                String      @id @default(cuid())
+  campaignName      String
+  description       String
+  surveySource      SurveySource
+  surveyId          String?
+  targetAudience    Json // Stores region, city, age, interest with "all"/"custom" and values arrays
+  totalVoteNeeded   Int
+  startDate         DateTime
+  isActive          Boolean     @default(true)
+  isCompleted       Boolean     @default(false)
+  numberOfInfluencer Int        @default(0)
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("campaigns")
+}

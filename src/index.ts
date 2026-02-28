@@ -7,6 +7,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
+import campaignRoutes from './routes/campaign.js';
 import { swaggerSpec } from './config/swagger.js';
 
 if (!process.env.DATABASE_URL) {
@@ -91,6 +92,7 @@ app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerOptions));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/campaign', campaignRoutes);
 
 /**
  * @swagger

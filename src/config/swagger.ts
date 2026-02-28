@@ -234,6 +234,265 @@ const options: swaggerJsdoc.Options = {
             },
           },
         },
+        Campaign: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'Campaign unique identifier',
+            },
+            campaignName: {
+              type: 'string',
+              description: 'Campaign name',
+            },
+            description: {
+              type: 'string',
+              description: 'Campaign description',
+            },
+            surveySource: {
+              type: 'string',
+              enum: ['creating_new', 'use_existing_survey'],
+              description: 'Survey source type',
+            },
+            surveyId: {
+              type: 'string',
+              nullable: true,
+              description: 'Survey ID (required when surveySource is "use_existing_survey")',
+            },
+            targetAudience: {
+              type: 'object',
+              description: 'Target audience configuration',
+              properties: {
+                region: {
+                  type: 'object',
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['all', 'custom'],
+                    },
+                    values: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Required when type is "custom"',
+                    },
+                  },
+                },
+                city: {
+                  type: 'object',
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['all', 'custom'],
+                    },
+                    values: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Required when type is "custom"',
+                    },
+                  },
+                },
+                age: {
+                  type: 'object',
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['all', 'custom'],
+                    },
+                    values: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Required when type is "custom"',
+                    },
+                  },
+                },
+                interest: {
+                  type: 'object',
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['all', 'custom'],
+                    },
+                    values: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Required when type is "custom"',
+                    },
+                  },
+                },
+              },
+            },
+            totalVoteNeeded: {
+              type: 'integer',
+              description: 'Total number of votes needed',
+              minimum: 1,
+            },
+            startDate: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Campaign start date (ISO 8601)',
+            },
+            isActive: {
+              type: 'boolean',
+              description: 'Whether the campaign is currently active',
+              example: true,
+            },
+            isCompleted: {
+              type: 'boolean',
+              description: 'Whether the campaign has been completed',
+              example: false,
+            },
+            numberOfInfluencer: {
+              type: 'integer',
+              description: 'Number of influencers assigned to the campaign',
+              example: 0,
+            },
+            userId: {
+              type: 'string',
+              description: 'ID of the user who created the campaign',
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Campaign creation date',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Campaign last update date',
+            },
+          },
+        },
+        CreateCampaignRequest: {
+          type: 'object',
+          required: ['campaignName', 'description', 'surveySource', 'targetAudience', 'totalVoteNeeded', 'startDate'],
+          properties: {
+            campaignName: {
+              type: 'string',
+              minLength: 2,
+              example: 'Product Feedback Survey',
+              description: 'Campaign name (min 2 characters)',
+            },
+            description: {
+              type: 'string',
+              minLength: 10,
+              example: 'Collecting valuable customer insights about product features and usability',
+              description: 'Campaign description (min 10 characters)',
+            },
+            surveySource: {
+              type: 'string',
+              enum: ['creating_new', 'use_existing_survey'],
+              example: 'creating_new',
+              description: 'Survey source type',
+            },
+            surveyId: {
+              type: 'string',
+              example: 'survey-123',
+              description: 'Survey ID (required when surveySource is "use_existing_survey")',
+            },
+            targetAudience: {
+              type: 'object',
+              required: ['region', 'city', 'age', 'interest'],
+              properties: {
+                region: {
+                  type: 'object',
+                  required: ['type'],
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['all', 'custom'],
+                      example: 'all',
+                    },
+                    values: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      example: ['US', 'UK'],
+                      description: 'Required when type is "custom"',
+                    },
+                  },
+                },
+                city: {
+                  type: 'object',
+                  required: ['type'],
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['all', 'custom'],
+                      example: 'all',
+                    },
+                    values: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      example: ['New York', 'London'],
+                      description: 'Required when type is "custom"',
+                    },
+                  },
+                },
+                age: {
+                  type: 'object',
+                  required: ['type'],
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['all', 'custom'],
+                      example: 'custom',
+                    },
+                    values: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      example: ['18-25', '26-35'],
+                      description: 'Required when type is "custom"',
+                    },
+                  },
+                },
+                interest: {
+                  type: 'object',
+                  required: ['type'],
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['all', 'custom'],
+                      example: 'custom',
+                    },
+                    values: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      example: ['Technology', 'Fashion'],
+                      description: 'Required when type is "custom"',
+                    },
+                  },
+                },
+              },
+            },
+            totalVoteNeeded: {
+              type: 'integer',
+              minimum: 1,
+              example: 1000,
+              description: 'Total number of votes needed (minimum 1)',
+            },
+            startDate: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-02-01T10:00:00Z',
+              description: 'Campaign start date in ISO 8601 format (must be in the future)',
+            },
+          },
+        },
+        CreateCampaignResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: true,
+            },
+            message: {
+              type: 'string',
+              example: 'Campaign created successfully',
+            },
+            campaign: {
+              $ref: '#/components/schemas/Campaign',
+            },
+          },
+        },
       },
     },
     tags: [
@@ -244,6 +503,10 @@ const options: swaggerJsdoc.Options = {
       {
         name: 'User',
         description: 'User profile and management endpoints',
+      },
+      {
+        name: 'Campaign',
+        description: 'Campaign management endpoints',
       },
       {
         name: 'Health',
