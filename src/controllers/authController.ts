@@ -10,6 +10,9 @@ export class AuthController {
    */
   async register(req: Request, res: Response): Promise<void> {
     try {
+      // Ensure JSON content type
+      res.setHeader('Content-Type', 'application/json');
+      
       // Validate request body
       const validationResult = registerSchema.safeParse(req.body);
 
@@ -58,10 +61,15 @@ export class AuthController {
       });
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'An error occurred during registration',
-      });
+      // Only send response if headers haven't been sent
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred during registration',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { stack: error.stack }),
+        });
+      }
     }
   }
 
@@ -71,6 +79,9 @@ export class AuthController {
    */
   async login(req: Request, res: Response): Promise<void> {
     try {
+      // Ensure JSON content type
+      res.setHeader('Content-Type', 'application/json');
+      
       // Validate request body
       const validationResult = loginSchema.safeParse(req.body);
 
@@ -121,10 +132,15 @@ export class AuthController {
       });
     } catch (error) {
       console.error('Login error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'An error occurred during login',
-      });
+      // Only send response if headers haven't been sent
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred during login',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { stack: error.stack }),
+        });
+      }
     }
   }
 }

@@ -41,7 +41,16 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/register', (req, res) => authController.register(req, res));
+router.post('/register', async (req, res, next) => {
+  try {
+    await authController.register(req, res);
+  } catch (error: any) {
+    console.error('Route error in /register:', error);
+    // Ensure error is properly formatted
+    const err = error instanceof Error ? error : new Error(String(error));
+    next(err);
+  }
+});
 
 /**
  * @swagger
@@ -81,6 +90,15 @@ router.post('/register', (req, res) => authController.register(req, res));
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/login', (req, res) => authController.login(req, res));
+router.post('/login', async (req, res, next) => {
+  try {
+    await authController.login(req, res);
+  } catch (error: any) {
+    console.error('Route error in /login:', error);
+    // Ensure error is properly formatted
+    const err = error instanceof Error ? error : new Error(String(error));
+    next(err);
+  }
+});
 
 export default router;

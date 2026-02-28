@@ -47,40 +47,60 @@ export class UserService {
    * Create a new user
    */
   async createUser(data: CreateUserData): Promise<UserWithoutPassword> {
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+    try {
+      // Hash password
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(data.password, saltRounds);
 
-    // Create user
-    // Influencers start as unapproved, others are approved by default
-    const isApproved = data.role !== 'influencer';
-    
-    const user = await prisma.user.create({
-      data: {
-        email: data.email,
-        phoneNumber: data.phoneNumber || null,
-        company: data.company || null,
-        fullName: data.fullName,
-        countryCode: data.countryCode || null,
-        password: hashedPassword,
-        role: (data.role || 'brand') as UserRole,
-        isApproved,
-      },
-      select: {
-        id: true,
-        email: true,
-        phoneNumber: true,
-        company: true,
-        fullName: true,
-        countryCode: true,
-        role: true,
-        isApproved: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+      // Create user
+      // Influencers start as unapproved, others are approved by default
+      const isApproved = data.role !== 'influencer';
+      
+      const user = await prisma.user.create({
+        data: {
+          email: data.email,
+          phoneNumber: data.phoneNumber || null,
+          company: data.company || null,
+          fullName: data.fullName,
+          countryCode: data.countryCode || null,
+          password: hashedPassword,
+          role: (data.role || 'brand') as UserRole,
+          isApproved,
+        },
+        select: {
+          id: true,
+          email: true,
+          phoneNumber: true,
+          company: true,
+          fullName: true,
+          countryCode: true,
+          role: true,
+          isApproved: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
 
-    return user;
+      return user;
+    } catch (error: any) {
+      console.error('UserService.createUser error:', error);
+      console.error('Error details:', {
+        code: error?.code,
+        meta: error?.meta,
+        message: error?.message,
+      });
+      
+      // Re-throw with more context
+      const errorMessage = error?.message || 'Unknown error';
+      const prismaError = new Error(`Failed to create user: ${errorMessage}`);
+      
+      // Preserve Prisma error codes if available
+      if (error?.code) {
+        (prismaError as any).code = error.code;
+      }
+      
+      throw prismaError;
+    }
   }
 
   /**
