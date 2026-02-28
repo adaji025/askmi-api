@@ -60,6 +60,7 @@ router.get('/profile', async (req: Request, res: Response) => {
         phoneNumber: true,
         company: true,
         fullName: true,
+        countryCode: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -162,6 +163,7 @@ router.get('/', authorize('admin'), async (req: Request, res: Response) => {
         phoneNumber: true,
         company: true,
         fullName: true,
+        countryCode: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -229,6 +231,7 @@ router.get('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
         phoneNumber: true,
         company: true,
         fullName: true,
+        countryCode: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -311,7 +314,7 @@ router.get('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
 router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const { fullName, phoneNumber, company } = req.body;
+    const { fullName, phoneNumber, company, countryCode } = req.body;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -330,6 +333,7 @@ router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
     if (fullName !== undefined) updateData.fullName = fullName;
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
     if (company !== undefined) updateData.company = company;
+    if (countryCode !== undefined) updateData.countryCode = countryCode;
     
     // Only admin can change role
     if (req.body.role && req.user!.role === 'admin') {
@@ -345,6 +349,7 @@ router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
         phoneNumber: true,
         company: true,
         fullName: true,
+        countryCode: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -551,6 +556,7 @@ router.post('/admin/approve-influencer/:id', authorize('admin'), async (req: Req
         phoneNumber: true,
         company: true,
         fullName: true,
+        countryCode: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -614,6 +620,7 @@ router.get('/admin/pending-influencers', authorize('admin'), async (req: Request
         phoneNumber: true,
         company: true,
         fullName: true,
+        countryCode: true,
         role: true,
         isApproved: true,
         createdAt: true,

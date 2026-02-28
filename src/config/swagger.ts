@@ -76,6 +76,11 @@ const options: swaggerJsdoc.Options = {
               type: 'string',
               description: 'User full name',
             },
+            countryCode: {
+              type: 'string',
+              nullable: true,
+              description: 'ISO country code (e.g., US, GB, CA)',
+            },
             role: {
               type: 'string',
               enum: ['brand', 'admin', 'influencer'],
@@ -118,6 +123,12 @@ const options: swaggerJsdoc.Options = {
             fullName: {
               type: 'string',
               example: 'John Doe',
+            },
+            countryCode: {
+              type: 'string',
+              nullable: true,
+              example: 'US',
+              description: 'ISO country code (e.g., US, GB, CA)',
             },
             password: {
               type: 'string',

@@ -97,6 +97,7 @@ async function main(): Promise<void> {
     // Start HTTP server
     app.listen(PORT, () => {
       console.log(`🚀 Server ready on port ${PORT}`);
+      console.log(`📚 Swagger documentation: http://localhost:${PORT}/api-docs`);
     });
   } catch (error) {
     console.error('❌ Error:', error);

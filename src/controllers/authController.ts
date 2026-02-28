@@ -22,7 +22,7 @@ export class AuthController {
         return;
       }
 
-      const { email, phoneNumber, company, fullName, password, role } = validationResult.data;
+      const { email, phoneNumber, company, fullName, countryCode, password, role } = validationResult.data;
 
       // Check if user already exists
       const userExists = await userService.userExists(email);
@@ -41,6 +41,7 @@ export class AuthController {
         phoneNumber,
         company,
         fullName,
+        countryCode,
         password,
         role: role as any,
       });

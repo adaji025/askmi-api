@@ -6,6 +6,7 @@ export const registerSchema = z.object({
   phoneNumber: z.string().optional(),
   company: z.string().optional(),
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  countryCode: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
   role: z.enum(['brand', 'admin', 'influencer']).optional().default('brand'),

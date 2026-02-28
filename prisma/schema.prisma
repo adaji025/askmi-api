@@ -21,6 +21,7 @@ model User {
   phoneNumber String?
   company     String?
   fullName    String
+  countryCode String?
   password    String
   role        UserRole @default(brand)
   isApproved  Boolean  @default(true) // Influencers start as false, others as true

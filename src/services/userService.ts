@@ -7,6 +7,7 @@ export interface CreateUserData {
   phoneNumber?: string | null;
   company?: string | null;
   fullName: string;
+  countryCode?: string | null;
   password: string;
   role?: UserRole;
 }
@@ -17,6 +18,7 @@ export interface UserWithoutPassword {
   phoneNumber: string | null;
   company: string | null;
   fullName: string;
+  countryCode: string | null;
   role: UserRole;
   isApproved: boolean;
   createdAt: Date;
@@ -59,6 +61,7 @@ export class UserService {
         phoneNumber: data.phoneNumber || null,
         company: data.company || null,
         fullName: data.fullName,
+        countryCode: data.countryCode || null,
         password: hashedPassword,
         role: (data.role || 'brand') as UserRole,
         isApproved,
@@ -69,6 +72,7 @@ export class UserService {
         phoneNumber: true,
         company: true,
         fullName: true,
+        countryCode: true,
         role: true,
         isApproved: true,
         createdAt: true,
