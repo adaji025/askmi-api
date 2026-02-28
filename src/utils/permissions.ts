@@ -110,7 +110,7 @@ export function getRolePermissions(role: string): Permission[] {
       Permission.CONTENT_DELETE_OWN,
       Permission.CONTENT_READ_ALL,
     ],
-    [UserRole.USER]: [
+    [UserRole.BRAND]: [
       Permission.USERS_READ_OWN,
       Permission.USERS_WRITE_OWN,
       Permission.CONTENT_CREATE_OWN,

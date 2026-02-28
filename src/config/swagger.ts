@@ -24,7 +24,7 @@ const options: swaggerJsdoc.Options = {
 - Cannot view other users' profiles
 - Cannot access admin endpoints
 
-### User
+### Brand
 - Can view and edit own profile
 - Can create, edit, and delete own content
 - Can view others' content (read-only)
@@ -78,7 +78,7 @@ const options: swaggerJsdoc.Options = {
             },
             role: {
               type: 'string',
-              enum: ['user', 'admin', 'influencer'],
+              enum: ['brand', 'admin', 'influencer'],
               description: 'User role',
             },
             isApproved: {
@@ -132,9 +132,9 @@ const options: swaggerJsdoc.Options = {
             },
             role: {
               type: 'string',
-              enum: ['user', 'admin', 'influencer'],
-              default: 'user',
-              example: 'user',
+              enum: ['brand', 'admin', 'influencer'],
+              default: 'brand',
+              example: 'brand',
             },
           },
         },

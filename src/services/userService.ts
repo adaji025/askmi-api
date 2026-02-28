@@ -60,7 +60,7 @@ export class UserService {
         company: data.company || null,
         fullName: data.fullName,
         password: hashedPassword,
-        role: data.role || 'user',
+        role: (data.role || 'brand') as UserRole,
         isApproved,
       },
       select: {

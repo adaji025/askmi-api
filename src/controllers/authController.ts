@@ -42,7 +42,7 @@ export class AuthController {
         company,
         fullName,
         password,
-        role,
+        role: role as any,
       });
 
       // Return success response with appropriate message for influencers

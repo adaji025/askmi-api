@@ -26,7 +26,7 @@ export enum Permission {
  * User roles
  */
 export enum UserRole {
-  USER = 'user',
+  BRAND = 'brand',
   ADMIN = 'admin',
   INFLUENCER = 'influencer',
 }
@@ -60,8 +60,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.CONTENT_DELETE_OWN,
     Permission.CONTENT_READ_ALL,
   ],
-  [UserRole.USER]: [
-    // Regular user permissions
+  [UserRole.BRAND]: [
+    // Brand permissions
     Permission.USERS_READ_OWN,
     Permission.USERS_WRITE_OWN,
     Permission.CONTENT_CREATE_OWN,

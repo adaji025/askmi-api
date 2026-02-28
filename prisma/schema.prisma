@@ -10,7 +10,7 @@ datasource db {
 }
 
 enum UserRole {
-  user
+  brand
   admin
   influencer
 }
@@ -22,7 +22,7 @@ model User {
   company     String?
   fullName    String
   password    String
-  role        UserRole @default(user)
+  role        UserRole @default(brand)
   isApproved  Boolean  @default(true) // Influencers start as false, others as true
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -8,7 +8,7 @@ export const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
-  role: z.enum(['user', 'admin', 'influencer']).optional().default('user'),
+  role: z.enum(['brand', 'admin', 'influencer']).optional().default('brand'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],
