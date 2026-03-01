@@ -48,6 +48,7 @@ export class CampaignService {
           targetAudience: data.targetAudience as any,
           totalVoteNeeded: data.totalVoteNeeded,
           startDate: data.startDate,
+          isActive: true, // Default to true for new campaigns
           userId,
         },
         select: {
@@ -71,11 +72,11 @@ export class CampaignService {
       return campaign;
     } catch (error: any) {
       console.error('CampaignService.createCampaign error:', error);
-      console.error('Error details:', {
-        code: error?.code,
-        meta: error?.meta,
-        message: error?.message,
-      });
+      
+      // Handle database connection errors
+      if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
+        throw new Error('Database connection failed. Please check your database server is running and accessible.');
+      }
       
       // Re-throw with more context
       const errorMessage = error?.message || 'Unknown error';
@@ -120,6 +121,12 @@ export class CampaignService {
       return campaigns;
     } catch (error: any) {
       console.error('CampaignService.getAllCampaigns error:', error);
+      
+      // Handle database connection errors
+      if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
+        throw new Error('Database connection failed. Please check your database server is running and accessible.');
+      }
+      
       const errorMessage = error?.message || 'Unknown error';
       const prismaError = new Error(`Failed to fetch campaigns: ${errorMessage}`);
       if (error?.code) {
@@ -157,6 +164,12 @@ export class CampaignService {
       return campaign;
     } catch (error: any) {
       console.error('CampaignService.getCampaignById error:', error);
+      
+      // Handle database connection errors
+      if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
+        throw new Error('Database connection failed. Please check your database server is running and accessible.');
+      }
+      
       const errorMessage = error?.message || 'Unknown error';
       const prismaError = new Error(`Failed to fetch campaign: ${errorMessage}`);
       if (error?.code) {

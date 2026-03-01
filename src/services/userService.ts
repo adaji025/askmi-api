@@ -30,17 +30,33 @@ export class UserService {
    * Find user by email
    */
   async findByEmail(email: string) {
-    return await prisma.user.findUnique({
-      where: { email },
-    });
+    try {
+      return await prisma.user.findUnique({
+        where: { email },
+      });
+    } catch (error: any) {
+      // Handle database connection errors
+      if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
+        throw new Error('Database connection failed. Please check your database server is running and accessible.');
+      }
+      throw error;
+    }
   }
 
   /**
    * Check if user exists by email
    */
   async userExists(email: string): Promise<boolean> {
-    const user = await this.findByEmail(email);
-    return user !== null;
+    try {
+      const user = await this.findByEmail(email);
+      return user !== null;
+    } catch (error: any) {
+      // Re-throw connection errors with better message
+      if (error?.message?.includes('Database connection failed')) {
+        throw error;
+      }
+      throw new Error('Failed to check if user exists');
+    }
   }
 
   /**
@@ -84,11 +100,11 @@ export class UserService {
       return user;
     } catch (error: any) {
       console.error('UserService.createUser error:', error);
-      console.error('Error details:', {
-        code: error?.code,
-        meta: error?.meta,
-        message: error?.message,
-      });
+      
+      // Handle database connection errors
+      if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
+        throw new Error('Database connection failed. Please check your database server is running and accessible.');
+      }
       
       // Re-throw with more context
       const errorMessage = error?.message || 'Unknown error';

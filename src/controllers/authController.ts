@@ -63,11 +63,27 @@ export class AuthController {
       console.error('Registration error:', error);
       // Only send response if headers haven't been sent
       if (!res.headersSent) {
-        res.status(500).json({
+        let statusCode = 500;
+        let errorMessage = 'An error occurred during registration';
+        
+        // Check for specific error types
+        if (error instanceof Error) {
+          if (error.message.includes('Database connection failed')) {
+            statusCode = 503; // Service Unavailable
+            errorMessage = 'Database connection failed. Please try again later.';
+          } else if (error.message.includes('User with this email already exists')) {
+            statusCode = 409;
+            errorMessage = error.message;
+          }
+        }
+        
+        res.status(statusCode).json({
           success: false,
-          message: 'An error occurred during registration',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { stack: error.stack }),
+          message: errorMessage,
+          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { 
+            error: error.message,
+            stack: error.stack 
+          }),
         });
       }
     }
@@ -134,11 +150,27 @@ export class AuthController {
       console.error('Login error:', error);
       // Only send response if headers haven't been sent
       if (!res.headersSent) {
-        res.status(500).json({
+        let statusCode = 500;
+        let errorMessage = 'An error occurred during login';
+        
+        // Check for specific error types
+        if (error instanceof Error) {
+          if (error.message.includes('Database connection failed')) {
+            statusCode = 503; // Service Unavailable
+            errorMessage = 'Database connection failed. Please try again later.';
+          } else if (error.message.includes('Invalid email or password')) {
+            statusCode = 401;
+            errorMessage = error.message;
+          }
+        }
+        
+        res.status(statusCode).json({
           success: false,
-          message: 'An error occurred during login',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { stack: error.stack }),
+          message: errorMessage,
+          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { 
+            error: error.message,
+            stack: error.stack 
+          }),
         });
       }
     }
