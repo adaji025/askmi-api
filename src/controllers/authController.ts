@@ -80,10 +80,6 @@ export class AuthController {
         res.status(statusCode).json({
           success: false,
           message: errorMessage,
-          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { 
-            error: error.message,
-            stack: error.stack 
-          }),
         });
       }
     }
@@ -167,10 +163,6 @@ export class AuthController {
         res.status(statusCode).json({
           success: false,
           message: errorMessage,
-          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { 
-            error: error.message,
-            stack: error.stack 
-          }),
         });
       }
     }

@@ -51,21 +51,22 @@ export class CampaignController {
         let statusCode = 500;
         let errorMessage = 'An error occurred during campaign creation';
         
-        // Check for specific error types
         if (error instanceof Error) {
           if (error.message.includes('Database connection failed')) {
             statusCode = 503; // Service Unavailable
             errorMessage = 'Database connection failed. Please try again later.';
+          } else if (error.message.includes('Database setup is incomplete')) {
+            statusCode = 503; // Service Unavailable
+            errorMessage = error.message;
+          } else if (error.message.startsWith('Failed to create campaign:')) {
+            // Forward Prisma/service error details for debugging
+            errorMessage = error.message.replace('Failed to create campaign: ', '');
           }
         }
         
         res.status(statusCode).json({
           success: false,
           message: errorMessage,
-          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { 
-            error: error.message,
-            stack: error.stack 
-          }),
         });
       }
     }
@@ -94,8 +95,6 @@ export class CampaignController {
         res.status(500).json({
           success: false,
           message: 'An error occurred while fetching campaigns',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { stack: error.stack }),
         });
       }
     }
@@ -141,10 +140,6 @@ export class CampaignController {
         res.status(statusCode).json({
           success: false,
           message: errorMessage,
-          ...(process.env.NODE_ENV === 'development' && error instanceof Error && { 
-            error: error.message,
-            stack: error.stack 
-          }),
         });
       }
     }

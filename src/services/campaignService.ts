@@ -78,6 +78,11 @@ export class CampaignService {
         throw new Error('Database connection failed. Please check your database server is running and accessible.');
       }
       
+      // Handle missing table (migrations not run)
+      if (error?.message?.includes('does not exist in the current database')) {
+        throw new Error('Database setup is incomplete. Please run database migrations to create the required tables.');
+      }
+      
       // Re-throw with more context
       const errorMessage = error?.message || 'Unknown error';
       const prismaError = new Error(`Failed to create campaign: ${errorMessage}`);

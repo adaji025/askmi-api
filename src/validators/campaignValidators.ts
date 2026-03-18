@@ -22,18 +22,21 @@ export const createCampaignSchema = z.object({
   surveySource: z.enum(['creating_new', 'use_existing_survey']),
   surveyId: z.string().optional(),
   targetAudience: z.object({
-    region: targetAudienceFieldSchema,
-    city: targetAudienceFieldSchema,
-    age: targetAudienceFieldSchema,
-    interest: targetAudienceFieldSchema,
+    region: targetAudienceFieldSchema.default({ type: 'all' }),
+    city: targetAudienceFieldSchema.default({ type: 'all' }),
+    age: targetAudienceFieldSchema.default({ type: 'all' }),
+    interest: targetAudienceFieldSchema.default({ type: 'all' }),
   }),
   totalVoteNeeded: z.number().int().positive('Total votes needed must be a positive integer').min(1, 'Total votes needed must be at least 1'),
   startDate: z.string().datetime('Start date must be a valid ISO 8601 datetime string').refine((date) => {
     const startDate = new Date(date);
     const now = new Date();
-    return startDate > now;
+    // Allow today or future - compare date only to avoid timezone edge cases
+    const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return startDay >= today;
   }, {
-    message: 'Start date must be in the future',
+    message: 'Start date must be today or in the future',
   }),
 }).refine((data) => {
   // If surveySource is "use_existing_survey", surveyId must be provided
