@@ -44,7 +44,8 @@ model Campaign {
   description       String
   surveySource      SurveySource     // creating_new | use_existing_survey (for reference)
   targetAudience    Json // Stores region, city, age, interest with "all"/"custom" and values arrays
-  totalVoteNeeded   Int
+  totalVoteNeeded    Int
+  numberOfQuestions  Int             @default(0)
   startDate         DateTime
   endDate           DateTime?
   isActive          Boolean          @default(true)

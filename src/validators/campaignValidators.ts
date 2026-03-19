@@ -27,6 +27,7 @@ export const createCampaignSchema = z.object({
     interest: targetAudienceFieldSchema.default({ type: 'all' }),
   }),
   totalVoteNeeded: z.number().int().positive('Total votes needed must be a positive integer').min(1, 'Total votes needed must be at least 1'),
+  numberOfQuestions: z.number().int().min(0, 'Number of questions must be 0 or greater').optional().default(0),
   startDate: z.string().datetime('Start date must be a valid ISO 8601 datetime string').refine((date) => {
     const startDate = new Date(date);
     const now = new Date();

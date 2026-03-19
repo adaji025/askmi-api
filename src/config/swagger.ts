@@ -321,6 +321,12 @@ const options: swaggerJsdoc.Options = {
               description: 'Total number of votes needed',
               minimum: 1,
             },
+            numberOfQuestions: {
+              type: 'integer',
+              description: 'Number of questions in the campaign survey',
+              minimum: 0,
+              example: 10,
+            },
             startDate: {
               type: 'string',
               format: 'date-time',
@@ -481,6 +487,12 @@ const options: swaggerJsdoc.Options = {
               minimum: 1,
               example: 1000,
               description: 'Total number of votes needed (minimum 1)',
+            },
+            numberOfQuestions: {
+              type: 'integer',
+              minimum: 0,
+              example: 10,
+              description: 'Number of questions in the campaign survey (optional, default 0)',
             },
             startDate: {
               type: 'string',

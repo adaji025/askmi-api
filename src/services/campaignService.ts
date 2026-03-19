@@ -12,6 +12,7 @@ export interface CreateCampaignData {
     interest: { type: 'all' | 'custom'; values?: string[] };
   };
   totalVoteNeeded: number;
+  numberOfQuestions?: number;
   startDate: Date;
   endDate?: Date | null;
 }
@@ -23,6 +24,7 @@ export interface CampaignWithoutRelations {
   surveySource: SurveySource;
   targetAudience: any;
   totalVoteNeeded: number;
+  numberOfQuestions: number;
   startDate: Date;
   endDate: Date | null;
   isActive: boolean;
@@ -51,6 +53,7 @@ export class CampaignService {
           surveySource: data.surveySource,
           targetAudience: data.targetAudience as any,
           totalVoteNeeded: data.totalVoteNeeded,
+          numberOfQuestions: data.numberOfQuestions ?? 0,
           startDate: data.startDate,
           endDate: data.endDate ?? null,
           isActive: true, // Default to true for new campaigns
@@ -63,6 +66,7 @@ export class CampaignService {
           surveySource: true,
           targetAudience: true,
           totalVoteNeeded: true,
+          numberOfQuestions: true,
           startDate: true,
           endDate: true,
           isActive: true,
@@ -130,6 +134,7 @@ export class CampaignService {
           surveySource: true,
           targetAudience: true,
           totalVoteNeeded: true,
+          numberOfQuestions: true,
           startDate: true,
           endDate: true,
           isActive: true,
@@ -179,6 +184,7 @@ export class CampaignService {
           surveySource: true,
           targetAudience: true,
           totalVoteNeeded: true,
+          numberOfQuestions: true,
           startDate: true,
           endDate: true,
           isActive: true,
