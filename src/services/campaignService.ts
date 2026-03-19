@@ -5,7 +5,6 @@ export interface CreateCampaignData {
   campaignName: string;
   description: string;
   surveySource: SurveySource;
-  surveyId?: string | null;
   targetAudience: {
     region: { type: 'all' | 'custom'; values?: string[] };
     city: { type: 'all' | 'custom'; values?: string[] };
@@ -14,6 +13,7 @@ export interface CreateCampaignData {
   };
   totalVoteNeeded: number;
   startDate: Date;
+  endDate?: Date | null;
 }
 
 export interface CampaignWithoutRelations {
@@ -21,16 +21,21 @@ export interface CampaignWithoutRelations {
   campaignName: string;
   description: string;
   surveySource: SurveySource;
-  surveyId: string | null;
   targetAudience: any;
   totalVoteNeeded: number;
   startDate: Date;
+  endDate: Date | null;
   isActive: boolean;
   isCompleted: boolean;
   numberOfInfluencer: number;
   userId: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CampaignWithResponse extends CampaignWithoutRelations {
+  surveys?: { id: string; title: string | null; questions: unknown }[];
+  response: number; // Total votes received from surveys associated with the campaign
 }
 
 export class CampaignService {
@@ -44,10 +49,10 @@ export class CampaignService {
           campaignName: data.campaignName,
           description: data.description,
           surveySource: data.surveySource,
-          surveyId: data.surveyId || null,
           targetAudience: data.targetAudience as any,
           totalVoteNeeded: data.totalVoteNeeded,
           startDate: data.startDate,
+          endDate: data.endDate ?? null,
           isActive: true, // Default to true for new campaigns
           userId,
         },
@@ -56,10 +61,10 @@ export class CampaignService {
           campaignName: true,
           description: true,
           surveySource: true,
-          surveyId: true,
           targetAudience: true,
           totalVoteNeeded: true,
           startDate: true,
+          endDate: true,
           isActive: true,
           isCompleted: true,
           numberOfInfluencer: true,
@@ -96,10 +101,26 @@ export class CampaignService {
     }
   }
 
+  private async enrichCampaignsWithResponseCount<T extends { id: string }>(
+    campaigns: T[]
+  ): Promise<(T & { response: number })[]> {
+    const campaignIds = campaigns.map((c) => c.id);
+    const counts = await prisma.surveyResponse.groupBy({
+      by: ['campaignId'],
+      where: { campaignId: { in: campaignIds } },
+      _count: { id: true },
+    });
+    const countMap = new Map(counts.map((c) => [c.campaignId, c._count.id]));
+    return campaigns.map((c) => ({
+      ...c,
+      response: countMap.get(c.id) ?? 0,
+    }));
+  }
+
   /**
-   * Get all campaigns
+   * Get all campaigns (with response = total vote count)
    */
-  async getAllCampaigns(): Promise<CampaignWithoutRelations[]> {
+  async getAllCampaigns(): Promise<CampaignWithResponse[]> {
     try {
       const campaigns = await prisma.campaign.findMany({
         select: {
@@ -107,23 +128,26 @@ export class CampaignService {
           campaignName: true,
           description: true,
           surveySource: true,
-          surveyId: true,
           targetAudience: true,
           totalVoteNeeded: true,
           startDate: true,
+          endDate: true,
           isActive: true,
           isCompleted: true,
           numberOfInfluencer: true,
           userId: true,
           createdAt: true,
           updatedAt: true,
+          surveys: {
+            select: { id: true, title: true, questions: true },
+          },
         },
         orderBy: {
           createdAt: 'desc',
         },
       });
 
-      return campaigns;
+      return this.enrichCampaignsWithResponseCount(campaigns);
     } catch (error: any) {
       console.error('CampaignService.getAllCampaigns error:', error);
       
@@ -142,9 +166,9 @@ export class CampaignService {
   }
 
   /**
-   * Get campaign by ID
+   * Get campaign by ID (with response = total vote count)
    */
-  async getCampaignById(campaignId: string): Promise<CampaignWithoutRelations | null> {
+  async getCampaignById(campaignId: string): Promise<CampaignWithResponse | null> {
     try {
       const campaign = await prisma.campaign.findUnique({
         where: { id: campaignId },
@@ -153,20 +177,25 @@ export class CampaignService {
           campaignName: true,
           description: true,
           surveySource: true,
-          surveyId: true,
           targetAudience: true,
           totalVoteNeeded: true,
           startDate: true,
+          endDate: true,
           isActive: true,
           isCompleted: true,
           numberOfInfluencer: true,
           userId: true,
           createdAt: true,
           updatedAt: true,
+          surveys: {
+            select: { id: true, title: true, questions: true },
+          },
         },
       });
 
-      return campaign;
+      if (!campaign) return null;
+      const [enriched] = await this.enrichCampaignsWithResponseCount([campaign]);
+      return enriched;
     } catch (error: any) {
       console.error('CampaignService.getCampaignById error:', error);
       

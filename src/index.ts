@@ -8,16 +8,15 @@ import { Pool } from 'pg';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import campaignRoutes from './routes/campaign.js';
+import surveyRoutes from './routes/survey.js';
 import { swaggerSpec } from './config/swagger.js';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is not set');
 }
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
-
 export const prisma = new PrismaClient({ adapter });
 
 const app = express();
@@ -93,6 +92,7 @@ app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerOptions));
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/campaign', campaignRoutes);
+app.use('/api/survey', surveyRoutes);
 
 /**
  * @swagger

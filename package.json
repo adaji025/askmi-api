@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
+    "predev": "prisma generate",
     "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/index.js",
@@ -29,7 +30,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@prisma/client": "^7.4.2",
+    "@prisma/client": "^7.5.0",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

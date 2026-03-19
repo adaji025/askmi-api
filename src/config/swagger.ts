@@ -254,11 +254,6 @@ const options: swaggerJsdoc.Options = {
               enum: ['creating_new', 'use_existing_survey'],
               description: 'Survey source type',
             },
-            surveyId: {
-              type: 'string',
-              nullable: true,
-              description: 'Survey ID (required when surveySource is "use_existing_survey")',
-            },
             targetAudience: {
               type: 'object',
               description: 'Target audience configuration',
@@ -331,6 +326,12 @@ const options: swaggerJsdoc.Options = {
               format: 'date-time',
               description: 'Campaign start date (ISO 8601)',
             },
+            endDate: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true,
+              description: 'Campaign end date (ISO 8601)',
+            },
             isActive: {
               type: 'boolean',
               description: 'Whether the campaign is currently active',
@@ -360,6 +361,23 @@ const options: swaggerJsdoc.Options = {
               format: 'date-time',
               description: 'Campaign last update date',
             },
+            response: {
+              type: 'integer',
+              description: 'Total votes received from surveys associated with the campaign',
+              example: 0,
+            },
+            surveys: {
+              type: 'array',
+              description: 'Surveys belonging to this campaign',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  title: { type: 'string', nullable: true },
+                  questions: { type: 'array', items: { $ref: '#/components/schemas/SurveyQuestion' } },
+                },
+              },
+            },
           },
         },
         CreateCampaignRequest: {
@@ -383,11 +401,6 @@ const options: swaggerJsdoc.Options = {
               enum: ['creating_new', 'use_existing_survey'],
               example: 'creating_new',
               description: 'Survey source type',
-            },
-            surveyId: {
-              type: 'string',
-              example: 'survey-123',
-              description: 'Survey ID (required when surveySource is "use_existing_survey")',
             },
             targetAudience: {
               type: 'object',
@@ -475,6 +488,12 @@ const options: swaggerJsdoc.Options = {
               example: '2024-02-01T10:00:00Z',
               description: 'Campaign start date in ISO 8601 format (must be in the future)',
             },
+            endDate: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-02-28T23:59:59Z',
+              description: 'Campaign end date in ISO 8601 format (optional, must be on or after start date)',
+            },
           },
         },
         CreateCampaignResponse: {
@@ -493,6 +512,82 @@ const options: swaggerJsdoc.Options = {
             },
           },
         },
+        CreateSurveyRequest: {
+          type: 'object',
+          required: ['campaignId', 'questions'],
+          properties: {
+            campaignId: {
+              type: 'string',
+              description: 'ID of the campaign this survey belongs to',
+            },
+            title: {
+              type: 'string',
+              description: 'Survey title',
+              example: 'Customer Feedback Survey',
+            },
+            questions: {
+              type: 'array',
+              minItems: 1,
+              items: { $ref: '#/components/schemas/SurveyQuestion' },
+            },
+          },
+        },
+        UpdateSurveyRequest: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: 'Survey title',
+            },
+            questions: {
+              type: 'array',
+              minItems: 1,
+              items: { $ref: '#/components/schemas/SurveyQuestion' },
+            },
+          },
+        },
+        SurveyQuestionOption: {
+          type: 'object',
+          required: ['id', 'text'],
+          properties: {
+            id: { type: 'integer' },
+            text: { type: 'string' },
+          },
+        },
+        SurveyQuestion: {
+          type: 'object',
+          required: ['type', 'title', 'id', 'order'],
+          properties: {
+            type: {
+              type: 'string',
+              enum: ['multiple-choice', 'yes-no', 'rating-scale', 'text'],
+            },
+            title: { type: 'string' },
+            required: { type: 'boolean', default: false },
+            id: { type: 'string' },
+            order: { type: 'integer' },
+            options: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/SurveyQuestionOption' },
+              description: 'Required for multiple-choice type only',
+            },
+          },
+        },
+        Survey: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            campaignId: { type: 'string', description: 'ID of the campaign this survey belongs to' },
+            title: { type: 'string', nullable: true },
+            questions: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/SurveyQuestion' },
+            },
+            userId: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
       },
     },
     tags: [
@@ -507,6 +602,10 @@ const options: swaggerJsdoc.Options = {
       {
         name: 'Campaign',
         description: 'Campaign management endpoints',
+      },
+      {
+        name: 'Survey',
+        description: 'Survey creation and management endpoints',
       },
       {
         name: 'Health',

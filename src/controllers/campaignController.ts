@@ -27,14 +27,16 @@ export class CampaignController {
       const data = validationResult.data;
       const userId = req.user!.userId;
 
-      // Convert startDate string to Date object
+      // Convert date strings to Date objects
       const startDate = new Date(data.startDate);
+      const endDate = data.endDate ? new Date(data.endDate) : undefined;
 
       // Create campaign
       const campaign = await campaignService.createCampaign(
         {
           ...data,
           startDate,
+          endDate,
         },
         userId
       );

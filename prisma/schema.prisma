@@ -33,26 +33,57 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   campaigns   Campaign[]
+  surveys     Survey[]
 
   @@map("users")
 }
 
 model Campaign {
-  id                String      @id @default(cuid())
+  id                String           @id @default(cuid())
   campaignName      String
   description       String
-  surveySource      SurveySource
-  surveyId          String?
+  surveySource      SurveySource     // creating_new | use_existing_survey (for reference)
   targetAudience    Json // Stores region, city, age, interest with "all"/"custom" and values arrays
   totalVoteNeeded   Int
   startDate         DateTime
-  isActive          Boolean     @default(true)
-  isCompleted       Boolean     @default(false)
-  numberOfInfluencer Int        @default(0)
+  endDate           DateTime?
+  isActive          Boolean          @default(true)
+  isCompleted       Boolean          @default(false)
+  numberOfInfluencer Int             @default(0)
   userId            String
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surveys           Survey[]
+  surveyResponses   SurveyResponse[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@map("campaigns")
+}
+
+model Survey {
+  id               String           @id @default(cuid())
+  title            String?
+  questions        Json // Array of question objects: multiple-choice, yes-no, rating-scale, text
+  campaignId       String
+  campaign         Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surveyResponses  SurveyResponse[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@map("surveys")
+}
+
+model SurveyResponse {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  surveyId   String
+  survey     Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  userId     String?
+  answers    Json?    // Stores question answers
+  createdAt  DateTime @default(now())
+
+  @@map("survey_responses")
 }
