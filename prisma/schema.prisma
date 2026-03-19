@@ -87,3 +87,13 @@ model SurveyResponse {
 
   @@map("survey_responses")
 }
+
+model BudgetConfig {
+  id               String   @id @default(cuid())
+  key              String   @unique @default("default") // Singleton key for app-wide config
+  pricePerUnitVote Decimal  @db.Decimal(10, 2) // Price per single vote
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("budget_configs")
+}

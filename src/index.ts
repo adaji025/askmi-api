@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import campaignRoutes from './routes/campaign.js';
 import surveyRoutes from './routes/survey.js';
+import budgetRoutes from './routes/budget.js';
 import { swaggerSpec } from './config/swagger.js';
 
 if (!process.env.DATABASE_URL) {
@@ -93,6 +94,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/campaign', campaignRoutes);
 app.use('/api/survey', surveyRoutes);
+app.use('/api/budget', budgetRoutes);
 
 /**
  * @swagger

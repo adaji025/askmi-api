@@ -608,6 +608,10 @@ const options: swaggerJsdoc.Options = {
         description: 'Survey creation and management endpoints',
       },
       {
+        name: 'Budget',
+        description: 'Budget config and estimate endpoints',
+      },
+      {
         name: 'Health',
         description: 'Health check endpoints',
       },
