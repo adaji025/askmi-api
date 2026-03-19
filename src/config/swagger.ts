@@ -624,6 +624,10 @@ const options: swaggerJsdoc.Options = {
         description: 'Budget config and estimate endpoints',
       },
       {
+        name: 'Brand Statistics',
+        description: 'Brand dashboard statistics and activity',
+      },
+      {
         name: 'Health',
         description: 'Health check endpoints',
       },
