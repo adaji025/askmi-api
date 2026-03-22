@@ -6,13 +6,15 @@
   "type": "module",
   "scripts": {
     "predev": "prisma generate",
+    "db:seed": "prisma db seed",
     "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "prisma:seed": "prisma db seed"
   },
   "keywords": [],
   "author": "",

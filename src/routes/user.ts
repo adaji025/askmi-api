@@ -3,6 +3,7 @@ import { authenticate, authorize, requireOwnershipOrRole, requireAnyRole, requir
 import { Permission } from '../types/permissions.js';
 import type { Request, Response } from 'express';
 import { prisma } from '../index.js';
+import { updatePreferencesSchema } from '../validators/preferenceValidators.js';
 
 const router = Router();
 
@@ -178,6 +179,137 @@ router.put('/profile', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'An error occurred while updating profile',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/user/preferences:
+ *   get:
+ *     summary: Get user preferences
+ *     description: Get the authenticated user's preferences (timeZone, campaignUpdate, responseAlerts, influencerActivity)
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Preferences retrieved successfully
+ *       404:
+ *         description: User not found
+ *   put:
+ *     summary: Update user preferences
+ *     description: Update the authenticated user's preferences
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               timeZone:
+ *                 type: string
+ *                 example: America/New_York
+ *               campaignUpdate:
+ *                 type: boolean
+ *               responseAlerts:
+ *                 type: boolean
+ *               influencerActivity:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Preferences updated successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: User not found
+ */
+router.get('/preferences', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        timeZone: true,
+        campaignUpdate: true,
+        responseAlerts: true,
+        influencerActivity: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      preferences: user,
+    });
+  } catch (error) {
+    console.error('Get preferences error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while fetching preferences',
+    });
+  }
+});
+
+router.put('/preferences', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+
+    const validationResult = updatePreferencesSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validationResult.error.issues,
+      });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (validationResult.data.timeZone !== undefined) updateData.timeZone = validationResult.data.timeZone;
+    if (validationResult.data.campaignUpdate !== undefined) updateData.campaignUpdate = validationResult.data.campaignUpdate;
+    if (validationResult.data.responseAlerts !== undefined) updateData.responseAlerts = validationResult.data.responseAlerts;
+    if (validationResult.data.influencerActivity !== undefined) updateData.influencerActivity = validationResult.data.influencerActivity;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        timeZone: true,
+        campaignUpdate: true,
+        responseAlerts: true,
+        influencerActivity: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Preferences updated successfully',
+      preferences: updatedUser,
+    });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating preferences',
     });
   }
 });

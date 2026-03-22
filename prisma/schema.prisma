@@ -29,6 +29,10 @@ model User {
   fullName    String
   countryCode String?
   lang        String   @default("en")
+  timeZone          String?  @default("UTC")
+  campaignUpdate    Boolean  @default(true)
+  responseAlerts    Boolean  @default(true)
+  influencerActivity Boolean @default(true)
   password    String
   role        UserRole @default(brand)
   isApproved  Boolean  @default(true) // Influencers start as false, others as true
