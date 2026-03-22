@@ -72,6 +72,11 @@ const options: swaggerJsdoc.Options = {
               nullable: true,
               description: 'User company name',
             },
+            companyCAC: {
+              type: 'string',
+              nullable: true,
+              description: 'Company CAC (default empty string)',
+            },
             fullName: {
               type: 'string',
               description: 'User full name',
@@ -80,6 +85,11 @@ const options: swaggerJsdoc.Options = {
               type: 'string',
               nullable: true,
               description: 'ISO country code (e.g., US, GB, CA)',
+            },
+            lang: {
+              type: 'string',
+              description: 'User language preference (default en)',
+              example: 'en',
             },
             role: {
               type: 'string',

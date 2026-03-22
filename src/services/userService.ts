@@ -17,8 +17,10 @@ export interface UserWithoutPassword {
   email: string;
   phoneNumber: string | null;
   company: string | null;
+  companyCAC: string | null;
   fullName: string;
   countryCode: string | null;
+  lang: string;
   role: UserRole;
   isApproved: boolean;
   createdAt: Date;
@@ -88,8 +90,10 @@ export class UserService {
           email: true,
           phoneNumber: true,
           company: true,
+          companyCAC: true,
           fullName: true,
           countryCode: true,
+          lang: true,
           role: true,
           isApproved: true,
           createdAt: true,

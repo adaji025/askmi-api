@@ -59,8 +59,10 @@ router.get('/profile', async (req: Request, res: Response) => {
         email: true,
         phoneNumber: true,
         company: true,
+        companyCAC: true,
         fullName: true,
         countryCode: true,
+        lang: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -84,6 +86,98 @@ router.get('/profile', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'An error occurred while fetching profile',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/user/profile:
+ *   put:
+ *     summary: Update own profile
+ *     description: Update the authenticated user's own profile. No ID required - uses token.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *               company:
+ *                 type: string
+ *               countryCode:
+ *                 type: string
+ *               companyCAC:
+ *                 type: string
+ *               lang:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.put('/profile', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { fullName, phoneNumber, company, countryCode, companyCAC, lang } = req.body;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (company !== undefined) updateData.company = company;
+    if (countryCode !== undefined) updateData.countryCode = countryCode;
+    if (companyCAC !== undefined) updateData.companyCAC = companyCAC;
+    if (lang !== undefined) updateData.lang = lang;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        phoneNumber: true,
+        company: true,
+        companyCAC: true,
+        fullName: true,
+        countryCode: true,
+        lang: true,
+        role: true,
+        isApproved: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating profile',
     });
   }
 });
@@ -162,8 +256,10 @@ router.get('/', authorize('admin'), async (req: Request, res: Response) => {
         email: true,
         phoneNumber: true,
         company: true,
+        companyCAC: true,
         fullName: true,
         countryCode: true,
+        lang: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -230,8 +326,10 @@ router.get('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
         email: true,
         phoneNumber: true,
         company: true,
+        companyCAC: true,
         fullName: true,
         countryCode: true,
+        lang: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -334,6 +432,8 @@ router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
     if (company !== undefined) updateData.company = company;
     if (countryCode !== undefined) updateData.countryCode = countryCode;
+    if (req.body.companyCAC !== undefined) updateData.companyCAC = req.body.companyCAC;
+    if (req.body.lang !== undefined) updateData.lang = req.body.lang;
     
     // Only admin can change role
     if (req.body.role && req.user!.role === 'admin') {
@@ -348,8 +448,10 @@ router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
         email: true,
         phoneNumber: true,
         company: true,
+        companyCAC: true,
         fullName: true,
         countryCode: true,
+        lang: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -555,8 +657,10 @@ router.post('/admin/approve-influencer/:id', authorize('admin'), async (req: Req
         email: true,
         phoneNumber: true,
         company: true,
+        companyCAC: true,
         fullName: true,
         countryCode: true,
+        lang: true,
         role: true,
         isApproved: true,
         createdAt: true,
@@ -619,8 +723,10 @@ router.get('/admin/pending-influencers', authorize('admin'), async (req: Request
         email: true,
         phoneNumber: true,
         company: true,
+        companyCAC: true,
         fullName: true,
         countryCode: true,
+        lang: true,
         role: true,
         isApproved: true,
         createdAt: true,
