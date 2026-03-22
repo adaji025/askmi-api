@@ -628,6 +628,10 @@ const options: swaggerJsdoc.Options = {
         description: 'Brand dashboard statistics and activity',
       },
       {
+        name: 'Analytics',
+        description: 'Brand analytics - full dashboard data',
+      },
+      {
         name: 'Health',
         description: 'Health check endpoints',
       },
