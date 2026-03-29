@@ -61,6 +61,8 @@ router.get('/profile', async (req: Request, res: Response) => {
         phoneNumber: true,
         company: true,
         companyCAC: true,
+        companySize: true,
+        industry: true,
         fullName: true,
         countryCode: true,
         lang: true,
@@ -116,6 +118,10 @@ router.get('/profile', async (req: Request, res: Response) => {
  *                 type: string
  *               companyCAC:
  *                 type: string
+ *               companySize:
+ *                 type: string
+ *               industry:
+ *                 type: string
  *               lang:
  *                 type: string
  *     responses:
@@ -129,7 +135,7 @@ router.get('/profile', async (req: Request, res: Response) => {
 router.put('/profile', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const { fullName, phoneNumber, company, countryCode, companyCAC, lang } = req.body;
+    const { fullName, phoneNumber, company, countryCode, companyCAC, companySize, industry, lang } = req.body;
 
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
@@ -148,6 +154,8 @@ router.put('/profile', async (req: Request, res: Response) => {
     if (company !== undefined) updateData.company = company;
     if (countryCode !== undefined) updateData.countryCode = countryCode;
     if (companyCAC !== undefined) updateData.companyCAC = companyCAC;
+    if (companySize !== undefined) updateData.companySize = companySize;
+    if (industry !== undefined) updateData.industry = industry;
     if (lang !== undefined) updateData.lang = lang;
 
     const updatedUser = await prisma.user.update({
@@ -159,6 +167,8 @@ router.put('/profile', async (req: Request, res: Response) => {
         phoneNumber: true,
         company: true,
         companyCAC: true,
+        companySize: true,
+        industry: true,
         fullName: true,
         countryCode: true,
         lang: true,
@@ -389,6 +399,8 @@ router.get('/', authorize('admin'), async (req: Request, res: Response) => {
         phoneNumber: true,
         company: true,
         companyCAC: true,
+        companySize: true,
+        industry: true,
         fullName: true,
         countryCode: true,
         lang: true,
@@ -459,6 +471,8 @@ router.get('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
         phoneNumber: true,
         company: true,
         companyCAC: true,
+        companySize: true,
+        industry: true,
         fullName: true,
         countryCode: true,
         lang: true,
@@ -565,6 +579,8 @@ router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
     if (company !== undefined) updateData.company = company;
     if (countryCode !== undefined) updateData.countryCode = countryCode;
     if (req.body.companyCAC !== undefined) updateData.companyCAC = req.body.companyCAC;
+    if (req.body.companySize !== undefined) updateData.companySize = req.body.companySize;
+    if (req.body.industry !== undefined) updateData.industry = req.body.industry;
     if (req.body.lang !== undefined) updateData.lang = req.body.lang;
     
     // Only admin can change role
@@ -581,6 +597,8 @@ router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
         phoneNumber: true,
         company: true,
         companyCAC: true,
+        companySize: true,
+        industry: true,
         fullName: true,
         countryCode: true,
         lang: true,
@@ -856,6 +874,8 @@ router.get('/admin/pending-influencers', authorize('admin'), async (req: Request
         phoneNumber: true,
         company: true,
         companyCAC: true,
+        companySize: true,
+        industry: true,
         fullName: true,
         countryCode: true,
         lang: true,

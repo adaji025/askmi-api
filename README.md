@@ -90,6 +90,7 @@ Server runs at `http://localhost:4000` (or your `PORT`).
 | `/api/budget` | Budget config, price per unit vote, estimate |
 | `/api/brand/statistics` | Brand dashboard stats |
 | `/api/brand/analytics` | Full analytics (stats, chart data, campaigns table) |
+| `/api/admin/brands` | Admin – list all brands |
 | `/health` | Health check |
 
 ## Roles

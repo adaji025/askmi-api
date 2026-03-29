@@ -18,6 +18,8 @@ export interface UserWithoutPassword {
   phoneNumber: string | null;
   company: string | null;
   companyCAC: string | null;
+  companySize: string | null;
+  industry: string | null;
   fullName: string;
   countryCode: string | null;
   lang: string;
@@ -91,6 +93,8 @@ export class UserService {
           phoneNumber: true,
           company: true,
           companyCAC: true,
+          companySize: true,
+          industry: true,
           fullName: true,
           countryCode: true,
           lang: true,

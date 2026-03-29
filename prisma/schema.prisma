@@ -26,6 +26,8 @@ model User {
   phoneNumber String?
   company     String?
   companyCAC  String?  @default("")
+  companySize String?  @default("")
+  industry    String?  @default("")
   fullName    String
   countryCode String?
   lang        String   @default("en")

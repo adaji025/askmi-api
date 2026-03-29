@@ -77,6 +77,18 @@ const options: swaggerJsdoc.Options = {
               nullable: true,
               description: 'Company CAC (default empty string)',
             },
+            companySize: {
+              type: 'string',
+              nullable: true,
+              description: 'Company size (for brands, default empty)',
+              example: '11-50',
+            },
+            industry: {
+              type: 'string',
+              nullable: true,
+              description: 'Industry (for brands, default empty)',
+              example: 'Technology',
+            },
             fullName: {
               type: 'string',
               description: 'User full name',
@@ -640,6 +652,10 @@ const options: swaggerJsdoc.Options = {
       {
         name: 'Analytics',
         description: 'Brand analytics - full dashboard data',
+      },
+      {
+        name: 'Admin',
+        description: 'Admin-only endpoints (brands, etc.)',
       },
       {
         name: 'Health',

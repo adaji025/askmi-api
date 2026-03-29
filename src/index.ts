@@ -12,6 +12,7 @@ import surveyRoutes from './routes/survey.js';
 import budgetRoutes from './routes/budget.js';
 import brandStatisticsRoutes from './routes/brandStatistics.js';
 import analyticsRoutes from './routes/analytics.js';
+import adminBrandsRoutes from './routes/adminBrands.js';
 import { swaggerSpec } from './config/swagger.js';
 
 if (!process.env.DATABASE_URL) {
@@ -99,6 +100,7 @@ app.use('/api/survey', surveyRoutes);
 app.use('/api/budget', budgetRoutes);
 app.use('/api/brand/statistics', brandStatisticsRoutes);
 app.use('/api/brand/analytics', analyticsRoutes);
+app.use('/api/admin/brands', adminBrandsRoutes);
 
 /**
  * @swagger
