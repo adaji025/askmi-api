@@ -93,4 +93,90 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/brands/{id}:
+ *   get:
+ *     summary: Get a single brand (Admin only)
+ *     description: Returns brand profile, metrics, and campaigns as id + name only. Fails if user is not a brand.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Brand user id
+ *     responses:
+ *       200:
+ *         description: Brand retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 brand:
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/User'
+ *                     - type: object
+ *                       required:
+ *                         - totalCampaign
+ *                         - activeCampaign
+ *                         - totalSpend
+ *                         - campaigns
+ *                       properties:
+ *                         totalCampaign:
+ *                           type: integer
+ *                         activeCampaign:
+ *                           type: integer
+ *                         totalSpend:
+ *                           type: number
+ *                           format: float
+ *                         campaigns:
+ *                           type: array
+ *                           description: id and campaignName only, newest first
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                               campaignName:
+ *                                 type: string
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin role required
+ *       404:
+ *         description: Brand not found
+ */
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const brand = await adminBrandService.getBrandById(id);
+
+    if (!brand) {
+      return res.status(404).json({
+        success: false,
+        message: 'Brand not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      brand,
+    });
+  } catch (error) {
+    console.error('Get brand error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while fetching the brand',
+    });
+  }
+});
+
 export default router;

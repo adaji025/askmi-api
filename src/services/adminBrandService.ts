@@ -41,6 +41,17 @@ export type AdminBrandWithMetrics = BrandSummary & {
   totalSpend: number;
 };
 
+/** Lightweight campaign row for admin single-brand view */
+export type AdminBrandCampaignSummary = {
+  id: string;
+  campaignName: string;
+};
+
+/** Single-brand admin response: profile, metrics, campaign id + name only */
+export type AdminBrandDetail = AdminBrandWithMetrics & {
+  campaigns: AdminBrandCampaignSummary[];
+};
+
 /** Aggregate stats across all brand users’ campaigns */
 export interface AdminBrandsStatistics {
   totalBrands: number;
@@ -193,6 +204,64 @@ export class AdminBrandService {
         totalVotes,
       },
       brands: withMetrics,
+    };
+  }
+
+  /**
+   * Get one brand by user id (admin only). Returns null if missing or not role brand.
+   * campaigns: id and campaignName only, newest first.
+   */
+  async getBrandById(brandId: string): Promise<AdminBrandDetail | null> {
+    const brand = await prisma.user.findFirst({
+      where: { id: brandId, role: 'brand' },
+      select: BRAND_SELECT,
+    });
+
+    if (!brand) {
+      return null;
+    }
+
+    const [priceConfig, campaignRows] = await Promise.all([
+      budgetService.getPricePerUnitVote(),
+      prisma.campaign.findMany({
+        where: { userId: brandId },
+        select: {
+          id: true,
+          campaignName: true,
+          isActive: true,
+          isCompleted: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const pricePerUnitVote = priceConfig.pricePerUnitVote;
+    const totalCampaign = campaignRows.length;
+    const activeCampaign = campaignRows.filter((c) => c.isActive && !c.isCompleted).length;
+
+    const campaignIds = campaignRows.map((c) => c.id);
+    const responseCounts =
+      campaignIds.length === 0
+        ? []
+        : await prisma.surveyResponse.groupBy({
+            by: ['campaignId'],
+            where: { campaignId: { in: campaignIds } },
+            _count: { id: true },
+          });
+    const totalResponses = responseCounts.reduce((sum, r) => sum + r._count.id, 0);
+    const totalSpend = Math.round(totalResponses * pricePerUnitVote * 100) / 100;
+
+    const campaigns: AdminBrandCampaignSummary[] = campaignRows.map(({ id, campaignName }) => ({
+      id,
+      campaignName,
+    }));
+
+    return {
+      ...brand,
+      totalCampaign,
+      activeCampaign,
+      totalSpend,
+      campaigns,
     };
   }
 }

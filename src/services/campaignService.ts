@@ -122,6 +122,59 @@ export class CampaignService {
   }
 
   /**
+   * Get campaigns owned by a user (same shape as getAllCampaigns)
+   */
+  async getCampaignsByUserId(userId: string): Promise<CampaignWithResponse[]> {
+    try {
+      const campaigns = await prisma.campaign.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          campaignName: true,
+          description: true,
+          surveySource: true,
+          targetAudience: true,
+          totalVoteNeeded: true,
+          numberOfQuestions: true,
+          startDate: true,
+          endDate: true,
+          isActive: true,
+          isCompleted: true,
+          numberOfInfluencer: true,
+          userId: true,
+          createdAt: true,
+          updatedAt: true,
+          surveys: {
+            select: { id: true, title: true, questions: true },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      if (campaigns.length === 0) {
+        return [];
+      }
+
+      return this.enrichCampaignsWithResponseCount(campaigns);
+    } catch (error: any) {
+      console.error('CampaignService.getCampaignsByUserId error:', error);
+
+      if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
+        throw new Error('Database connection failed. Please check your database server is running and accessible.');
+      }
+
+      const errorMessage = error?.message || 'Unknown error';
+      const prismaError = new Error(`Failed to fetch campaigns: ${errorMessage}`);
+      if (error?.code) {
+        (prismaError as any).code = error.code;
+      }
+      throw prismaError;
+    }
+  }
+
+  /**
    * Get all campaigns (with response = total vote count)
    */
   async getAllCampaigns(): Promise<CampaignWithResponse[]> {
