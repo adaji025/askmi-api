@@ -38,12 +38,12 @@ const questionSchema = z.discriminatedUnion('type', [
 ]);
 
 export const createSurveySchema = z.object({
-  campaignId: z.string().min(1, 'Campaign ID is required'),
+  campaignId: z.string().min(1, 'Campaign ID cannot be empty').optional(),
   title: z.string().optional(),
   questions: z.array(questionSchema).min(1, 'At least one question is required'),
 });
 
-// Accept raw array as body (transforms to { questions: array }) - requires campaignId in query
+// Accept raw array as body (transforms to { questions: array }) - campaignId can be provided in query
 export const createSurveyArraySchema = z
   .array(questionSchema)
   .min(1, 'At least one question is required')
@@ -57,4 +57,9 @@ export const updateSurveySchema = z.object({
   message: 'At least one of title or questions must be provided',
 });
 
+export const attachSurveyToCampaignSchema = z.object({
+  campaignId: z.string().min(1, 'Campaign ID is required'),
+});
+
 export type CreateSurveyInput = z.infer<typeof createSurveySchema>;
+export type AttachSurveyToCampaignInput = z.infer<typeof attachSurveyToCampaignSchema>;

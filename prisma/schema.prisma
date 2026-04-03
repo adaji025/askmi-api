@@ -73,8 +73,8 @@ model Survey {
   id               String           @id @default(cuid())
   title            String?
   questions        Json // Array of question objects: multiple-choice, yes-no, rating-scale, text
-  campaignId       String
-  campaign         Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId       String?
+  campaign         Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   userId           String
   user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   surveyResponses  SurveyResponse[]

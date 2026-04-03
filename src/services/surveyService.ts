@@ -1,7 +1,8 @@
 import { prisma } from '../index.js';
+import { isAdmin } from '../types/permissions.js';
 
 export interface CreateSurveyData {
-  campaignId: string;
+  campaignId?: string;
   title?: string;
   questions: Array<{
     type: 'multiple-choice' | 'yes-no' | 'rating-scale' | 'text';
@@ -17,7 +18,7 @@ export interface SurveyResponse {
   id: string;
   title: string | null;
   questions: unknown;
-  campaignId: string;
+  campaignId: string | null;
   userId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -28,7 +29,7 @@ export class SurveyService {
     try {
       const survey = await prisma.survey.create({
         data: {
-          campaignId: data.campaignId,
+          ...(data.campaignId !== undefined && { campaignId: data.campaignId }),
           title: data.title ?? null,
           questions: data.questions as object,
           userId,
@@ -54,6 +55,15 @@ export class SurveyService {
 
       if (error?.message?.includes('does not exist in the current database')) {
         throw new Error('Database setup is incomplete. Please run database migrations to create the required tables.');
+      }
+
+      if (
+        error?.code === 'P2011' ||
+        (typeof error?.message === 'string' && error.message.includes('Null constraint violation'))
+      ) {
+        throw new Error(
+          'Cannot create a survey without a campaign until the database allows nullable campaignId. Run: npx prisma migrate deploy (or npx prisma db push), then try again.'
+        );
       }
 
       const errorMessage = error?.message || 'Unknown error';
@@ -163,6 +173,68 @@ export class SurveyService {
 
       const errorMessage = error?.message || 'Unknown error';
       throw new Error(`Failed to fetch surveys: ${errorMessage}`);
+    }
+  }
+
+  async attachSurveyToCampaign(
+    surveyId: string,
+    campaignId: string,
+    userId: string,
+    userRole: string
+  ): Promise<SurveyResponse | null> {
+    try {
+      const survey = await prisma.survey.findUnique({
+        where: { id: surveyId },
+        select: { id: true, userId: true },
+      });
+
+      if (!survey) {
+        return null;
+      }
+
+      const campaign = await prisma.campaign.findUnique({
+        where: { id: campaignId },
+        select: { id: true, userId: true },
+      });
+
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      const requesterIsAdmin = isAdmin(userRole);
+      if (!requesterIsAdmin) {
+        if (survey.userId !== userId) {
+          throw new Error('You can only attach surveys that belong to your account');
+        }
+        if (campaign.userId !== userId) {
+          throw new Error('You can only attach to campaigns that belong to your account');
+        }
+      }
+
+      const updated = await prisma.survey.update({
+        where: { id: surveyId },
+        data: { campaignId },
+        select: {
+          id: true,
+          title: true,
+          questions: true,
+          campaignId: true,
+          userId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      return updated;
+    } catch (error: any) {
+      console.error('SurveyService.attachSurveyToCampaign error:', error);
+
+      if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
+        throw new Error('Database connection failed. Please check your database server is running and accessible.');
+      }
+
+      const errorMessage = error?.message || 'Unknown error';
+      throw new Error(`Failed to attach survey to campaign: ${errorMessage}`);
     }
   }
 }

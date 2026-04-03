@@ -349,6 +349,12 @@ const options: swaggerJsdoc.Options = {
               minimum: 0,
               example: 10,
             },
+            totalQuestions: {
+              type: 'integer',
+              description: 'Alias of numberOfQuestions for API clients',
+              minimum: 0,
+              example: 10,
+            },
             startDate: {
               type: 'string',
               format: 'date-time',
@@ -429,6 +435,11 @@ const options: swaggerJsdoc.Options = {
               enum: ['creating_new', 'use_existing_survey'],
               example: 'creating_new',
               description: 'Survey source type',
+            },
+            surveyId: {
+              type: 'string',
+              example: 'cm9x5abc123surveyid',
+              description: 'Required when surveySource is "use_existing_survey". Must belong to the requester unless requester is admin.',
             },
             targetAudience: {
               type: 'object',
@@ -516,6 +527,12 @@ const options: swaggerJsdoc.Options = {
               example: 10,
               description: 'Number of questions in the campaign survey (optional, default 0)',
             },
+            totalQuestions: {
+              type: 'integer',
+              minimum: 0,
+              example: 10,
+              description: 'Alias for numberOfQuestions. Optional; if both are provided, values must match.',
+            },
             startDate: {
               type: 'string',
               format: 'date-time',
@@ -548,11 +565,12 @@ const options: swaggerJsdoc.Options = {
         },
         CreateSurveyRequest: {
           type: 'object',
-          required: ['campaignId', 'questions'],
+          required: ['questions'],
           properties: {
             campaignId: {
               type: 'string',
-              description: 'ID of the campaign this survey belongs to',
+              nullable: true,
+              description: 'Optional campaign ID to attach immediately. If omitted, survey is created unattached and can be linked later.',
             },
             title: {
               type: 'string',
@@ -611,7 +629,7 @@ const options: swaggerJsdoc.Options = {
           type: 'object',
           properties: {
             id: { type: 'string' },
-            campaignId: { type: 'string', description: 'ID of the campaign this survey belongs to' },
+            campaignId: { type: 'string', nullable: true, description: 'ID of the campaign this survey belongs to (nullable when unattached)' },
             title: { type: 'string', nullable: true },
             questions: {
               type: 'array',

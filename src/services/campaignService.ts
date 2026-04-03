@@ -1,10 +1,12 @@
 import { prisma } from '../index.js';
 import type { SurveySource } from '@prisma/client';
+import { isAdmin } from '../types/permissions.js';
 
 export interface CreateCampaignData {
   campaignName: string;
   description: string;
   surveySource: SurveySource;
+  surveyId?: string;
   targetAudience: {
     region: { type: 'all' | 'custom'; values?: string[] };
     city: { type: 'all' | 'custom'; values?: string[] };
@@ -25,6 +27,7 @@ export interface CampaignWithoutRelations {
   targetAudience: any;
   totalVoteNeeded: number;
   numberOfQuestions: number;
+  totalQuestions: number;
   startDate: Date;
   endDate: Date | null;
   isActive: boolean;
@@ -41,44 +44,76 @@ export interface CampaignWithResponse extends CampaignWithoutRelations {
 }
 
 export class CampaignService {
+  private withTotalQuestions<T extends { numberOfQuestions: number }>(campaign: T): T & { totalQuestions: number } {
+    return {
+      ...campaign,
+      totalQuestions: campaign.numberOfQuestions,
+    };
+  }
+
   /**
    * Create a new campaign
    */
-  async createCampaign(data: CreateCampaignData, userId: string): Promise<CampaignWithoutRelations> {
+  async createCampaign(data: CreateCampaignData, userId: string, userRole?: string): Promise<CampaignWithoutRelations> {
     try {
-      const campaign = await prisma.campaign.create({
-        data: {
-          campaignName: data.campaignName,
-          description: data.description,
-          surveySource: data.surveySource,
-          targetAudience: data.targetAudience as any,
-          totalVoteNeeded: data.totalVoteNeeded,
-          numberOfQuestions: data.numberOfQuestions ?? 0,
-          startDate: data.startDate,
-          endDate: data.endDate ?? null,
-          isActive: true, // Default to true for new campaigns
-          userId,
-        },
-        select: {
-          id: true,
-          campaignName: true,
-          description: true,
-          surveySource: true,
-          targetAudience: true,
-          totalVoteNeeded: true,
-          numberOfQuestions: true,
-          startDate: true,
-          endDate: true,
-          isActive: true,
-          isCompleted: true,
-          numberOfInfluencer: true,
-          userId: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+      const campaign = await prisma.$transaction(async (tx) => {
+        const createdCampaign = await tx.campaign.create({
+          data: {
+            campaignName: data.campaignName,
+            description: data.description,
+            surveySource: data.surveySource,
+            targetAudience: data.targetAudience as any,
+            totalVoteNeeded: data.totalVoteNeeded,
+            numberOfQuestions: data.numberOfQuestions ?? 0,
+            startDate: data.startDate,
+            endDate: data.endDate ?? null,
+            isActive: true, // Default to true for new campaigns
+            userId,
+          },
+          select: {
+            id: true,
+            campaignName: true,
+            description: true,
+            surveySource: true,
+            targetAudience: true,
+            totalVoteNeeded: true,
+            numberOfQuestions: true,
+            startDate: true,
+            endDate: true,
+            isActive: true,
+            isCompleted: true,
+            numberOfInfluencer: true,
+            userId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        if (data.surveySource === 'use_existing_survey' && data.surveyId) {
+          const existingSurvey = await tx.survey.findUnique({
+            where: { id: data.surveyId },
+            select: { id: true, userId: true },
+          });
+
+          if (!existingSurvey) {
+            throw new Error('Selected survey was not found');
+          }
+
+          const requesterIsAdmin = !!userRole && isAdmin(userRole);
+          if (!requesterIsAdmin && existingSurvey.userId !== userId) {
+            throw new Error('You can only attach surveys that belong to your account');
+          }
+
+          await tx.survey.update({
+            where: { id: data.surveyId },
+            data: { campaignId: createdCampaign.id },
+          });
+        }
+
+        return createdCampaign;
       });
 
-      return campaign;
+      return this.withTotalQuestions(campaign);
     } catch (error: any) {
       console.error('CampaignService.createCampaign error:', error);
       
@@ -105,9 +140,9 @@ export class CampaignService {
     }
   }
 
-  private async enrichCampaignsWithResponseCount<T extends { id: string }>(
+  private async enrichCampaignsWithResponseCount<T extends { id: string; numberOfQuestions: number }>(
     campaigns: T[]
-  ): Promise<(T & { response: number })[]> {
+  ): Promise<(T & { response: number; totalQuestions: number })[]> {
     const campaignIds = campaigns.map((c) => c.id);
     const counts = await prisma.surveyResponse.groupBy({
       by: ['campaignId'],
@@ -118,6 +153,7 @@ export class CampaignService {
     return campaigns.map((c) => ({
       ...c,
       response: countMap.get(c.id) ?? 0,
+      totalQuestions: c.numberOfQuestions,
     }));
   }
 
