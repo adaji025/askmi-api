@@ -15,6 +15,11 @@ enum UserRole {
   influencer
 }
 
+enum AuthProvider {
+  local
+  instagram
+}
+
 enum SurveySource {
   creating_new
   use_existing_survey
@@ -23,6 +28,8 @@ enum SurveySource {
 model User {
   id          String   @id @default(cuid())
   email       String   @unique
+  instagramId String?  @unique
+  authProvider AuthProvider @default(local)
   phoneNumber String?
   company     String?
   companyCAC  String?  @default("")

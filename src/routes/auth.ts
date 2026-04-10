@@ -101,4 +101,43 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/instagram:
+ *   post:
+ *     summary: Instagram sign in or sign up (influencer only)
+ *     description: |
+ *       Uses an Instagram OAuth user access token. In production, this token should be obtained
+ *       through the Instagram OAuth flow (login + consent), not entered manually by end users.
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/InstagramAuthRequest'
+ *     responses:
+ *       200:
+ *         description: Instagram authentication successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/InstagramAuthResponse'
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Invalid or expired Instagram token
+ *       403:
+ *         description: Instagram auth is restricted to influencer accounts
+ */
+router.post('/instagram', async (req, res, next) => {
+  try {
+    await authController.instagramAuth(req, res);
+  } catch (error: any) {
+    console.error('Route error in /instagram:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    next(err);
+  }
+});
+
 export default router;

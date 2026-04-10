@@ -20,3 +20,9 @@ export const loginSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(1, 'Password is required'),
 });
+
+// Instagram authentication schema (influencers only)
+export const instagramAuthSchema = z.object({
+  accessToken: z.string().min(1, 'Instagram access token is required'),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
+});

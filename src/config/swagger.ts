@@ -62,6 +62,17 @@ const options: swaggerJsdoc.Options = {
               format: 'email',
               description: 'User email address',
             },
+            instagramId: {
+              type: 'string',
+              nullable: true,
+              description: 'Instagram user ID for accounts authenticated via Instagram',
+            },
+            authProvider: {
+              type: 'string',
+              enum: ['local', 'instagram'],
+              description: 'Authentication provider used by the account',
+              example: 'local',
+            },
             phoneNumber: {
               type: 'string',
               nullable: true,
@@ -184,6 +195,61 @@ const options: swaggerJsdoc.Options = {
               type: 'string',
               format: 'password',
               example: 'password123',
+            },
+          },
+        },
+        InstagramAuthRequest: {
+          type: 'object',
+          required: ['accessToken'],
+          properties: {
+            accessToken: {
+              type: 'string',
+              description: 'Instagram user access token',
+              example: 'IGQVJ...',
+            },
+            fullName: {
+              type: 'string',
+              description: 'Optional full name override for first-time signup',
+              example: 'Jane Influencer',
+            },
+          },
+        },
+        InstagramAuthResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: true,
+            },
+            message: {
+              type: 'string',
+              example: 'Instagram login successful',
+            },
+            user: {
+              $ref: '#/components/schemas/User',
+            },
+            token: {
+              type: 'string',
+              description: 'JWT authentication token',
+              example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+            },
+            isNewUser: {
+              type: 'boolean',
+              example: false,
+            },
+            instagram: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'string',
+                  example: '17841400000000000',
+                },
+                username: {
+                  type: 'string',
+                  nullable: true,
+                  example: 'creator_handle',
+                },
+              },
             },
           },
         },

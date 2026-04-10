@@ -1,9 +1,11 @@
 import bcrypt from 'bcrypt';
 import { prisma } from '../index.js';
-import type { UserRole } from '@prisma/client';
+import type { UserRole, AuthProvider } from '@prisma/client';
 
 export interface CreateUserData {
   email: string;
+  instagramId?: string | null;
+  authProvider?: AuthProvider;
   phoneNumber?: string | null;
   company?: string | null;
   fullName: string;
@@ -15,6 +17,8 @@ export interface CreateUserData {
 export interface UserWithoutPassword {
   id: string;
   email: string;
+  instagramId: string | null;
+  authProvider: AuthProvider;
   phoneNumber: string | null;
   company: string | null;
   companyCAC: string | null;
@@ -29,6 +33,11 @@ export interface UserWithoutPassword {
   updatedAt: Date;
 }
 
+interface UpdateAuthProviderData {
+  instagramId?: string | null;
+  authProvider?: AuthProvider;
+}
+
 export class UserService {
   /**
    * Find user by email
@@ -40,6 +49,22 @@ export class UserService {
       });
     } catch (error: any) {
       // Handle database connection errors
+      if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
+        throw new Error('Database connection failed. Please check your database server is running and accessible.');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Find user by Instagram ID
+   */
+  async findByInstagramId(instagramId: string) {
+    try {
+      return await prisma.user.findUnique({
+        where: { instagramId },
+      });
+    } catch (error: any) {
       if (error?.code === 'P1001' || error?.message?.includes('getaddrinfo') || error?.message?.includes('EAI_AGAIN')) {
         throw new Error('Database connection failed. Please check your database server is running and accessible.');
       }
@@ -79,6 +104,8 @@ export class UserService {
       const user = await prisma.user.create({
         data: {
           email: data.email,
+          instagramId: data.instagramId || null,
+          authProvider: data.authProvider || 'local',
           phoneNumber: data.phoneNumber || null,
           company: data.company || null,
           fullName: data.fullName,
@@ -90,6 +117,8 @@ export class UserService {
         select: {
           id: true,
           email: true,
+          instagramId: true,
+          authProvider: true,
           phoneNumber: true,
           company: true,
           companyCAC: true,
@@ -125,6 +154,19 @@ export class UserService {
       
       throw prismaError;
     }
+  }
+
+  /**
+   * Update auth provider metadata for a user
+   */
+  async updateUserAuthProvider(userId: string, data: UpdateAuthProviderData): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        instagramId: data.instagramId,
+        authProvider: data.authProvider,
+      },
+    });
   }
 
   /**

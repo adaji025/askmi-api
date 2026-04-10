@@ -1,7 +1,10 @@
 import type { Request, Response } from 'express';
-import { registerSchema, loginSchema } from '../validators/authValidators.js';
+import { randomBytes } from 'crypto';
+import { registerSchema, loginSchema, instagramAuthSchema } from '../validators/authValidators.js';
 import { userService } from '../services/userService.js';
 import { jwtService } from '../services/jwtService.js';
+import { instagramService } from '../services/instagramService.js';
+import type { UserWithoutPassword } from '../services/userService.js';
 
 export class AuthController {
   /**
@@ -160,6 +163,109 @@ export class AuthController {
           }
         }
         
+        res.status(statusCode).json({
+          success: false,
+          message: errorMessage,
+        });
+      }
+    }
+  }
+
+  /**
+   * Instagram sign in / sign up (influencers only)
+   * POST /api/auth/instagram
+   */
+  async instagramAuth(req: Request, res: Response): Promise<void> {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+
+      const validationResult = instagramAuthSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          errors: validationResult.error.issues,
+        });
+        return;
+      }
+
+      const { accessToken, fullName } = validationResult.data;
+      const instagramProfile = await instagramService.getProfile(accessToken);
+      const syntheticEmail = `instagram_${instagramProfile.id}@instagram.local`;
+
+      // Primary lookup by provider id; fallback to legacy synthetic-email users.
+      const existingUser =
+        (await userService.findByInstagramId(instagramProfile.id)) ||
+        (await userService.findByEmail(syntheticEmail));
+
+      if (existingUser && existingUser.role !== 'influencer') {
+        res.status(403).json({
+          success: false,
+          message: 'Instagram auth is restricted to influencer accounts',
+        });
+        return;
+      }
+
+      let isNewUser = false;
+      let userWithoutPassword: UserWithoutPassword;
+
+      if (!existingUser) {
+        const generatedPassword = randomBytes(24).toString('hex');
+        const displayName = fullName || instagramProfile.username || `instagram_${instagramProfile.id}`;
+
+        userWithoutPassword = await userService.createUser({
+          email: syntheticEmail,
+          instagramId: instagramProfile.id,
+          authProvider: 'instagram',
+          fullName: displayName,
+          password: generatedPassword,
+          role: 'influencer',
+        });
+        isNewUser = true;
+      } else {
+        // Keep compatibility with existing rows created before provider fields existed.
+        if (!existingUser.instagramId) {
+          await userService.updateUserAuthProvider(existingUser.id, {
+            instagramId: instagramProfile.id,
+            authProvider: 'instagram',
+          });
+        }
+        userWithoutPassword = userService.getUserWithoutPassword(existingUser);
+      }
+
+      const token = jwtService.generateToken(userWithoutPassword);
+
+      res.status(200).json({
+        success: true,
+        message: isNewUser
+          ? 'Instagram influencer account created successfully. Your account is pending approval.'
+          : 'Instagram login successful',
+        user: userWithoutPassword,
+        token,
+        isNewUser,
+        instagram: {
+          id: instagramProfile.id,
+          username: instagramProfile.username || null,
+        },
+      });
+    } catch (error) {
+      console.error('Instagram auth error:', error);
+      if (!res.headersSent) {
+        let statusCode = 500;
+        let errorMessage = 'An error occurred during Instagram authentication';
+
+        if (error instanceof Error) {
+          if (error.message.includes('Failed to validate Instagram token') || error.message.includes('Invalid OAuth access token')) {
+            statusCode = 401;
+            errorMessage = 'Invalid or expired Instagram token';
+          } else if (error.message.includes('Database connection failed')) {
+            statusCode = 503;
+            errorMessage = 'Database connection failed. Please try again later.';
+          } else {
+            errorMessage = error.message;
+          }
+        }
+
         res.status(statusCode).json({
           success: false,
           message: errorMessage,

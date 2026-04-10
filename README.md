@@ -93,6 +93,38 @@ Server runs at `http://localhost:4000` (or your `PORT`).
 | `/api/admin/brands` | Admin – list all brands |
 | `/health` | Health check |
 
+## Instagram Influencer Auth
+
+`POST /api/auth/instagram` supports influencer sign in/sign up using an Instagram OAuth access token.
+
+### Important
+
+- End users should not paste tokens manually in production.
+- The token should come from Instagram OAuth after the user taps "Continue with Instagram" in your frontend.
+
+### Typical OAuth Flow
+
+1. Frontend redirects user to Instagram consent page.
+2. Instagram redirects back with an authorization `code`.
+3. Frontend or backend exchanges `code` for `access_token`.
+4. Frontend sends `access_token` to this backend endpoint:
+
+```http
+POST /api/auth/instagram
+Content-Type: application/json
+
+{
+  "accessToken": "<instagram_user_access_token>",
+  "fullName": "Optional Display Name"
+}
+```
+
+### Response Behavior
+
+- First valid login for that Instagram account creates an `influencer` user.
+- Subsequent logins return the existing influencer user.
+- Influencer accounts remain pending approval based on your approval flow.
+
 ## Roles
 
 | Role | Access |
