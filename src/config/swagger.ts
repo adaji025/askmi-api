@@ -184,7 +184,7 @@ const options: swaggerJsdoc.Options = {
         },
         InfluencerRegisterRequest: {
           type: 'object',
-          required: ['email', 'fullName', 'password', 'confirmPassword', 'role'],
+          required: ['email', 'phoneNumber', 'fullName', 'password', 'confirmPassword', 'role'],
           properties: {
             email: {
               type: 'string',
@@ -225,6 +225,18 @@ const options: swaggerJsdoc.Options = {
               enum: ['influencer'],
               example: 'influencer',
               description: 'Must be influencer for influencer registration',
+            },
+          },
+        },
+        RegisterRequestUnified: {
+          oneOf: [
+            { $ref: '#/components/schemas/RegisterRequest' },
+            { $ref: '#/components/schemas/InfluencerRegisterRequest' },
+          ],
+          discriminator: {
+            propertyName: 'role',
+            mapping: {
+              influencer: '#/components/schemas/InfluencerRegisterRequest',
             },
           },
         },

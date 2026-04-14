@@ -13,6 +13,9 @@ export const registerSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],
+}).refine((data) => data.role !== 'influencer' || !!data.phoneNumber?.trim(), {
+  message: 'Phone number is required for influencer registration',
+  path: ['phoneNumber'],
 });
 
 // Login validation schema

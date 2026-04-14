@@ -14,9 +14,7 @@ const router = Router();
  *       content:
  *         application/json:
  *           schema:
- *             oneOf:
- *               - $ref: '#/components/schemas/RegisterRequest'
- *               - $ref: '#/components/schemas/InfluencerRegisterRequest'
+ *             $ref: '#/components/schemas/RegisterRequestUnified'
  *           examples:
  *             brand:
  *               summary: Brand registration (default role)
@@ -29,6 +27,7 @@ const router = Router();
  *               summary: Influencer registration (role is required)
  *               value:
  *                 email: influencer@example.com
+ *                 phoneNumber: +1234567890
  *                 fullName: Jane Influencer
  *                 password: password123
  *                 confirmPassword: password123
