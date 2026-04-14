@@ -182,6 +182,52 @@ const options: swaggerJsdoc.Options = {
             },
           },
         },
+        InfluencerRegisterRequest: {
+          type: 'object',
+          required: ['email', 'fullName', 'password', 'confirmPassword', 'role'],
+          properties: {
+            email: {
+              type: 'string',
+              format: 'email',
+              example: 'influencer@example.com',
+            },
+            phoneNumber: {
+              type: 'string',
+              example: '+1234567890',
+            },
+            company: {
+              type: 'string',
+              example: 'Creator Studio',
+            },
+            fullName: {
+              type: 'string',
+              example: 'Jane Influencer',
+            },
+            countryCode: {
+              type: 'string',
+              nullable: true,
+              example: 'US',
+              description: 'ISO country code (e.g., US, GB, CA)',
+            },
+            password: {
+              type: 'string',
+              format: 'password',
+              minLength: 8,
+              example: 'password123',
+            },
+            confirmPassword: {
+              type: 'string',
+              format: 'password',
+              example: 'password123',
+            },
+            role: {
+              type: 'string',
+              enum: ['influencer'],
+              example: 'influencer',
+              description: 'Must be influencer for influencer registration',
+            },
+          },
+        },
         LoginRequest: {
           type: 'object',
           required: ['email', 'password'],
@@ -200,12 +246,13 @@ const options: swaggerJsdoc.Options = {
         },
         InstagramAuthRequest: {
           type: 'object',
-          required: ['accessToken'],
+          required: ['code'],
           properties: {
-            accessToken: {
+            code: {
               type: 'string',
-              description: 'Instagram user access token',
-              example: 'IGQVJ...',
+              description:
+                'Authorization code from Instagram OAuth redirect (query param `code`). The server exchanges it for an access token using app credentials and INSTAGRAM_REDIRECT_URI.',
+              example: 'AQBx8...',
             },
             fullName: {
               type: 'string',

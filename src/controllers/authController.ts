@@ -189,7 +189,18 @@ export class AuthController {
         return;
       }
 
-      const { accessToken, fullName } = validationResult.data;
+      const { code, fullName } = validationResult.data;
+
+      const redirectUri = process.env.INSTAGRAM_REDIRECT_URI?.trim();
+      if (!redirectUri) {
+        res.status(500).json({
+          success: false,
+          message: 'Server misconfiguration: INSTAGRAM_REDIRECT_URI is not set',
+        });
+        return;
+      }
+
+      const accessToken = await instagramService.exchangeCodeForToken(code, redirectUri);
       const instagramProfile = await instagramService.getProfile(accessToken);
       const syntheticEmail = `instagram_${instagramProfile.id}@instagram.local`;
 
@@ -255,12 +266,15 @@ export class AuthController {
         let errorMessage = 'An error occurred during Instagram authentication';
 
         if (error instanceof Error) {
-          if (error.message.includes('Failed to validate Instagram token') || error.message.includes('Invalid OAuth access token')) {
-            statusCode = 401;
-            errorMessage = 'Invalid or expired Instagram token';
-          } else if (error.message.includes('Database connection failed')) {
+          if (error.message.includes('Database connection failed')) {
             statusCode = 503;
             errorMessage = 'Database connection failed. Please try again later.';
+          } else if (error.message.includes('Instagram OAuth is not configured')) {
+            statusCode = 500;
+            errorMessage = error.message;
+          } else if (error.message.startsWith('INSTAGRAM_OAUTH_ERROR:')) {
+            statusCode = 401;
+            errorMessage = 'Invalid or expired Instagram authorization code';
           } else {
             errorMessage = error.message;
           }

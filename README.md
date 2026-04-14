@@ -38,6 +38,15 @@ CORS_ORIGIN=*
 JWT_SECRET=your-jwt-secret-key
 NODE_ENV=development
 
+# Instagram OAuth (required for POST /api/auth/instagram)
+INSTAGRAM_CLIENT_ID=
+INSTAGRAM_CLIENT_SECRET=
+# Must match the redirect_uri used in the Instagram authorize step exactly (per environment)
+INSTAGRAM_REDIRECT_URI=https://your-frontend.example.com/auth/instagram/callback
+# Optional overrides
+# INSTAGRAM_OAUTH_TOKEN_URL=https://api.instagram.com/oauth/access_token
+# INSTAGRAM_GRAPH_API_URL=https://graph.instagram.com
+
 # Seed admin (optional - for prisma db seed)
 SEED_ADMIN_EMAIL=admin@askmi.com
 SEED_ADMIN_PASSWORD=Admin@123
@@ -95,26 +104,25 @@ Server runs at `http://localhost:4000` (or your `PORT`).
 
 ## Instagram Influencer Auth
 
-`POST /api/auth/instagram` supports influencer sign in/sign up using an Instagram OAuth access token.
+`POST /api/auth/instagram` supports influencer sign in/sign up using the Instagram OAuth **authorization code** only. The backend exchanges the code for an access token using `INSTAGRAM_CLIENT_SECRET` (never send the secret from the frontend).
 
 ### Important
 
-- End users should not paste tokens manually in production.
-- The token should come from Instagram OAuth after the user taps "Continue with Instagram" in your frontend.
+- Configure `INSTAGRAM_CLIENT_ID`, `INSTAGRAM_CLIENT_SECRET`, and `INSTAGRAM_REDIRECT_URI` in `.env`.
+- `INSTAGRAM_REDIRECT_URI` must be **identical** to the `redirect_uri` you used when sending the user to Instagram’s authorize URL (and must be allowed in the Meta app settings).
 
 ### Typical OAuth Flow
 
-1. Frontend redirects user to Instagram consent page.
-2. Instagram redirects back with an authorization `code`.
-3. Frontend or backend exchanges `code` for `access_token`.
-4. Frontend sends `access_token` to this backend endpoint:
+1. Frontend redirects the user to Instagram’s authorize URL (includes `client_id`, `redirect_uri`, `scope`, `response_type=code`, `state`).
+2. Instagram redirects the user back to your `redirect_uri` with a `code` query parameter.
+3. Frontend reads `code` and calls this API:
 
 ```http
 POST /api/auth/instagram
 Content-Type: application/json
 
 {
-  "accessToken": "<instagram_user_access_token>",
+  "code": "<authorization_code_from_redirect>",
   "fullName": "Optional Display Name"
 }
 ```

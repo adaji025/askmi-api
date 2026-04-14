@@ -14,7 +14,25 @@ const router = Router();
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/RegisterRequest'
+ *             oneOf:
+ *               - $ref: '#/components/schemas/RegisterRequest'
+ *               - $ref: '#/components/schemas/InfluencerRegisterRequest'
+ *           examples:
+ *             brand:
+ *               summary: Brand registration (default role)
+ *               value:
+ *                 email: user@example.com
+ *                 fullName: John Doe
+ *                 password: password123
+ *                 confirmPassword: password123
+ *             influencer:
+ *               summary: Influencer registration (role is required)
+ *               value:
+ *                 email: influencer@example.com
+ *                 fullName: Jane Influencer
+ *                 password: password123
+ *                 confirmPassword: password123
+ *                 role: influencer
  *     responses:
  *       201:
  *         description: User registered successfully
@@ -107,8 +125,10 @@ router.post('/login', async (req, res, next) => {
  *   post:
  *     summary: Instagram sign in or sign up (influencer only)
  *     description: |
- *       Uses an Instagram OAuth user access token. In production, this token should be obtained
- *       through the Instagram OAuth flow (login + consent), not entered manually by end users.
+ *       Accepts only the OAuth `code` from the Instagram redirect. The server exchanges it for an
+ *       access token (client secret never exposed to the browser). Configure INSTAGRAM_CLIENT_ID,
+ *       INSTAGRAM_CLIENT_SECRET, and INSTAGRAM_REDIRECT_URI on the server; redirect_uri must match
+ *       the authorize URL exactly.
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
