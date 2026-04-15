@@ -84,7 +84,11 @@ export class UserService {
       if (error?.message?.includes('Database connection failed')) {
         throw error;
       }
-      throw new Error('Failed to check if user exists');
+      const wrappedError = new Error(`Failed to check if user exists: ${error?.message || 'Unknown error'}`);
+      if (error?.code) {
+        (wrappedError as any).code = error.code;
+      }
+      throw wrappedError;
     }
   }
 

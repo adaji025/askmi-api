@@ -777,6 +777,14 @@ const options: swaggerJsdoc.Options = {
         description: 'User profile and management endpoints',
       },
       {
+        name: 'Media',
+        description: 'Generic media upload endpoints',
+      },
+      {
+        name: 'Influencer Verification',
+        description: 'Influencer poll verification endpoints',
+      },
+      {
         name: 'Campaign',
         description: 'Campaign management endpoints',
       },

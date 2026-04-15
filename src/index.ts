@@ -7,6 +7,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
+import mediaRoutes from './routes/media.js';
+import influencerVerificationRoutes from './routes/influencerVerification.js';
 import campaignRoutes from './routes/campaign.js';
 import surveyRoutes from './routes/survey.js';
 import budgetRoutes from './routes/budget.js';
@@ -17,6 +19,10 @@ import { swaggerSpec } from './config/swagger.js';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is not set');
+}
+
+if (!process.env.UPLOADTHING_TOKEN) {
+  throw new Error('UPLOADTHING_TOKEN environment variable is not set');
 }
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -95,6 +101,8 @@ app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerOptions));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/influencer', influencerVerificationRoutes);
 app.use('/api/campaign', campaignRoutes);
 app.use('/api/survey', surveyRoutes);
 app.use('/api/budget', budgetRoutes);

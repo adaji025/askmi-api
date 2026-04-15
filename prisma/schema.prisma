@@ -25,6 +25,12 @@ enum SurveySource {
   use_existing_survey
 }
 
+enum PollVerificationStatus {
+  submitted
+  approved
+  rejected
+}
+
 model User {
   id          String   @id @default(cuid())
   email       String   @unique
@@ -49,8 +55,26 @@ model User {
   updatedAt   DateTime @updatedAt
   campaigns   Campaign[]
   surveys     Survey[]
+  pollVerification PollVerification?
 
   @@map("users")
+}
+
+model PollVerification {
+  id              String                 @id @default(cuid())
+  userId          String                 @unique
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  screenshotUrl   String
+  instagramHandle String?
+  notes           String?
+  status          PollVerificationStatus @default(submitted)
+  reviewNotes     String?
+  submittedAt     DateTime               @default(now())
+  reviewedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@map("poll_verifications")
 }
 
 model Campaign {

@@ -43,6 +43,8 @@ INSTAGRAM_CLIENT_ID=
 INSTAGRAM_CLIENT_SECRET=
 # Must match the redirect_uri used in the Instagram authorize step exactly (per environment)
 INSTAGRAM_REDIRECT_URI=https://your-frontend.example.com/auth/instagram/callback
+# UploadThing (required for POST /api/media/upload)
+UPLOADTHING_TOKEN=
 # Optional overrides
 # INSTAGRAM_OAUTH_TOKEN_URL=https://api.instagram.com/oauth/access_token
 # INSTAGRAM_GRAPH_API_URL=https://graph.instagram.com
@@ -132,6 +134,15 @@ Content-Type: application/json
 - First valid login for that Instagram account creates an `influencer` user.
 - Subsequent logins return the existing influencer user.
 - Influencer accounts remain pending approval based on your approval flow.
+
+## Media Upload (UploadThing)
+
+`POST /api/media/upload` uploads images to UploadThing and returns `media.url`, `media.key`, and `media.name`.
+
+### Required Setup
+
+- Set `UPLOADTHING_TOKEN` in `.env`.
+- This is validated at server startup; app will not boot without it.
 
 ## Roles
 

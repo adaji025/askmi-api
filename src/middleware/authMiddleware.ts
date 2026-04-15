@@ -76,8 +76,16 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
+    // Allow pending influencers to upload media, submit verification, and check status.
+    const pendingInfluencerAllowedPaths = new Set([
+      '/api/media/upload',
+      '/api/influencer/verify-poll',
+      '/api/influencer/verify-poll/status',
+    ]);
+    const requestPath = req.originalUrl.split('?')[0];
+
     // Check if influencer is approved
-    if (user.role === 'influencer' && !user.isApproved) {
+    if (user.role === 'influencer' && !user.isApproved && !pendingInfluencerAllowedPaths.has(requestPath)) {
       res.status(403).json({
         success: false,
         message: 'Your account is pending approval. Please wait for an admin to approve your account.',

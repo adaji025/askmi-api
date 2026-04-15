@@ -68,15 +68,22 @@ export class AuthController {
       if (!res.headersSent) {
         let statusCode = 500;
         let errorMessage = 'An error occurred during registration';
+        const knownError = error as Error & { code?: string };
         
         // Check for specific error types
-        if (error instanceof Error) {
-          if (error.message.includes('Database connection failed')) {
+        if (knownError) {
+          if (knownError.code === 'P2002' || knownError.message.includes('Unique constraint failed')) {
+            statusCode = 409;
+            errorMessage = 'User with this email already exists';
+          } else if (knownError.code === 'P2022' || knownError.message.includes('column') || knownError.message.includes('does not exist')) {
+            statusCode = 500;
+            errorMessage = 'Database schema is out of sync. Please run Prisma migrations.';
+          } else if (knownError.message.includes('Database connection failed')) {
             statusCode = 503; // Service Unavailable
             errorMessage = 'Database connection failed. Please try again later.';
-          } else if (error.message.includes('User with this email already exists')) {
+          } else if (knownError.message.includes('User with this email already exists')) {
             statusCode = 409;
-            errorMessage = error.message;
+            errorMessage = knownError.message;
           }
         }
         
