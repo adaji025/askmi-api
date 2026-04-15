@@ -79,6 +79,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     // Allow pending influencers to upload media, submit verification, and check status.
     const pendingInfluencerAllowedPaths = new Set([
       '/api/media/upload',
+      '/api/media/delete',
       '/api/influencer/verify-poll',
       '/api/influencer/verify-poll/status',
     ]);
