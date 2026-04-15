@@ -37,8 +37,8 @@ const parseSingleImageUpload = (req: Request): Promise<ParsedUploadFile> =>
     let tooLarge = false;
     const chunks: Buffer[] = [];
 
-    busboy.on('file', (fieldName, file, info) => {
-      if (fieldName !== 'screenshot') {
+    busboy.on('file', (_fieldName, file, info) => {
+      if (gotFile) {
         file.resume();
         return;
       }
