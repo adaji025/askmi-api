@@ -86,7 +86,7 @@ router.get('/estimate', async (req, res, next) => {
  *   get:
  *     summary: Get price per unit vote
  *     description: Returns current budget config (price per unit vote). Admin only.
- *     tags: [Budget]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -101,7 +101,7 @@ router.get('/estimate', async (req, res, next) => {
  *   post:
  *     summary: Set price per unit vote
  *     description: Create or set the price per unit vote. Admin only.
- *     tags: [Budget]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -129,7 +129,7 @@ router.get('/estimate', async (req, res, next) => {
  *   put:
  *     summary: Update price per unit vote
  *     description: Update the price per unit vote. Admin only.
- *     tags: [Budget]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     requestBody:

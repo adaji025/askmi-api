@@ -329,7 +329,7 @@ router.put('/preferences', async (req: Request, res: Response) => {
  * /api/user/admin-only:
  *   get:
  *     summary: Admin-only endpoint example
- *     tags: [User]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -367,7 +367,7 @@ router.put('/preferences', async (req: Request, res: Response) => {
  *   get:
  *     summary: Get all users
  *     description: Only Admin can view all users. Regular users and influencers cannot access this endpoint.
- *     tags: [User]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -629,7 +629,7 @@ router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
  *   delete:
  *     summary: Delete user
  *     description: Only Admin can delete users. This action cannot be undone.
- *     tags: [User]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -697,7 +697,7 @@ router.delete('/:id', authorize('admin'), async (req: Request, res: Response) =>
  * /api/user/admin-only:
  *   get:
  *     summary: Admin-only endpoint example
- *     tags: [User]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -735,7 +735,7 @@ router.delete('/:id', authorize('admin'), async (req: Request, res: Response) =>
  *   post:
  *     summary: Approve influencer account (Admin only)
  *     description: Admin can approve an influencer account to grant them access to the platform
- *     tags: [User]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -838,7 +838,7 @@ router.post('/admin/approve-influencer/:id', authorize('admin'), async (req: Req
  *   get:
  *     summary: Get pending influencers (Admin only)
  *     description: Admin can view all influencers waiting for approval
- *     tags: [User]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:

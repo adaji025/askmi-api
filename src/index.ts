@@ -15,6 +15,7 @@ import budgetRoutes from './routes/budget.js';
 import brandStatisticsRoutes from './routes/brandStatistics.js';
 import analyticsRoutes from './routes/analytics.js';
 import adminBrandsRoutes from './routes/adminBrands.js';
+import adminInfluencersRoutes from './routes/adminInfluencers.js';
 import { swaggerSpec } from './config/swagger.js';
 
 if (!process.env.DATABASE_URL) {
@@ -109,6 +110,8 @@ app.use('/api/budget', budgetRoutes);
 app.use('/api/brand/statistics', brandStatisticsRoutes);
 app.use('/api/brand/analytics', analyticsRoutes);
 app.use('/api/admin/brands', adminBrandsRoutes);
+app.use('/api/admin/influencers', adminInfluencersRoutes);
+app.use('/api/user/admin/influencers', adminInfluencersRoutes);
 
 /**
  * @swagger
