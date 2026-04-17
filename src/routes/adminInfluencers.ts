@@ -7,6 +7,63 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize('admin'));
 
+const computeInfluencerMetrics = (influencer: {
+  surveys: Array<{
+    campaignId: string | null;
+    surveyResponses: Array<{ createdAt: Date }>;
+  }>;
+  pollVerification: { status: 'submitted' | 'approved' | 'rejected' } | null;
+}) => {
+  const now = Date.now();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const currentWindowStart = now - sevenDaysMs;
+  const previousWindowStart = now - (2 * sevenDaysMs);
+
+  const totalCampaign = new Set(
+    influencer.surveys
+      .map((survey) => survey.campaignId)
+      .filter((campaignId): campaignId is string => Boolean(campaignId)),
+  ).size;
+
+  const totalVotes = influencer.surveys.reduce((sum, survey) => sum + survey.surveyResponses.length, 0);
+  const averageVote = influencer.surveys.length > 0
+    ? Number((totalVotes / influencer.surveys.length).toFixed(2))
+    : 0;
+
+  const recentVotes = influencer.surveys.reduce((sum, survey) => (
+    sum + survey.surveyResponses.filter((response) => new Date(response.createdAt).getTime() >= currentWindowStart).length
+  ), 0);
+  const previousVotes = influencer.surveys.reduce((sum, survey) => (
+    sum + survey.surveyResponses.filter((response) => {
+      const createdAt = new Date(response.createdAt).getTime();
+      return createdAt >= previousWindowStart && createdAt < currentWindowStart;
+    }).length
+  ), 0);
+
+  let deviationTrend: 'up' | 'down' | 'stable' = 'stable';
+  if (recentVotes > previousVotes) deviationTrend = 'up';
+  else if (recentVotes < previousVotes) deviationTrend = 'down';
+
+  const ocrAccuracy = influencer.pollVerification?.status === 'approved'
+    ? 100
+    : influencer.pollVerification?.status === 'submitted'
+      ? 50
+      : 0;
+
+  const performanceScore = Number(Math.min(
+    100,
+    (averageVote * 0.5) + (totalCampaign * 5) + (recentVotes * 1.5) + (ocrAccuracy * 0.2),
+  ).toFixed(2));
+
+  return {
+    totalCampaign,
+    averageVote,
+    performanceScore,
+    deviationTrend,
+    ocrAccuracy,
+  };
+};
+
 /**
  * @swagger
  * /api/admin/influencers:
@@ -57,7 +114,24 @@ router.use(authorize('admin'));
  *                 influencers:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/User'
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/User'
+ *                       - type: object
+ *                         properties:
+ *                           totalCampaign:
+ *                             type: integer
+ *                           averageVote:
+ *                             type: number
+ *                             format: float
+ *                           performanceScore:
+ *                             type: number
+ *                             format: float
+ *                           deviationTrend:
+ *                             type: string
+ *                             enum: [up, down, stable]
+ *                           ocrAccuracy:
+ *                             type: number
+ *                             format: float
  *       401:
  *         description: Unauthorized
  *       403:
@@ -94,6 +168,16 @@ router.get('/', async (req: Request, res: Response) => {
             surveys: true,
           },
         },
+        surveys: {
+          select: {
+            campaignId: true,
+            surveyResponses: {
+              select: {
+                createdAt: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -104,7 +188,14 @@ router.get('/', async (req: Request, res: Response) => {
     const pendingApprovals = influencers.filter((influencer) => !influencer.isApproved).length;
     const flaggedRisk = influencers.filter((influencer) => influencer.pollVerification?.status === 'rejected').length;
 
-    const topPerformerRecord = influencers.reduce<typeof influencers[number] | null>((currentTop, influencer) => {
+    const enrichedInfluencers = influencers.map((influencer) => {
+      return {
+        ...influencer,
+        ...computeInfluencerMetrics(influencer),
+      };
+    });
+
+    const topPerformerRecord = enrichedInfluencers.reduce<typeof enrichedInfluencers[number] | null>((currentTop, influencer) => {
       if (!currentTop || influencer._count.surveys > currentTop._count.surveys) {
         return influencer;
       }
@@ -128,7 +219,7 @@ router.get('/', async (req: Request, res: Response) => {
         flaggedRisk,
         topPerformer,
       },
-      influencers: influencers.map(({ pollVerification, _count, ...influencer }) => influencer),
+      influencers: enrichedInfluencers.map(({ pollVerification, _count, surveys, ...influencer }) => influencer),
     });
   } catch (error) {
     console.error('Get influencers error:', error);
@@ -167,7 +258,24 @@ router.get('/', async (req: Request, res: Response) => {
  *                   type: boolean
  *                   example: true
  *                 influencer:
- *                   $ref: '#/components/schemas/User'
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/User'
+ *                     - type: object
+ *                       properties:
+ *                         totalCampaign:
+ *                           type: integer
+ *                         averageVote:
+ *                           type: number
+ *                           format: float
+ *                         performanceScore:
+ *                           type: number
+ *                           format: float
+ *                         deviationTrend:
+ *                           type: string
+ *                           enum: [up, down, stable]
+ *                         ocrAccuracy:
+ *                           type: number
+ *                           format: float
  *       401:
  *         description: Unauthorized
  *       403:
@@ -198,6 +306,21 @@ router.get('/:id', async (req: Request, res: Response) => {
         isApproved: true,
         createdAt: true,
         updatedAt: true,
+        pollVerification: {
+          select: {
+            status: true,
+          },
+        },
+        surveys: {
+          select: {
+            campaignId: true,
+            surveyResponses: {
+              select: {
+                createdAt: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -210,7 +333,15 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      influencer,
+      influencer: {
+        ...(() => {
+          const { pollVerification, surveys, ...baseInfluencer } = influencer;
+          return {
+            ...baseInfluencer,
+            ...computeInfluencerMetrics({ pollVerification, surveys }),
+          };
+        })(),
+      },
     });
   } catch (error) {
     console.error('Get influencer error:', error);
