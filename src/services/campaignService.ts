@@ -1,6 +1,7 @@
 import { prisma } from '../index.js';
 import type { SurveySource } from '@prisma/client';
 import { isAdmin } from '../types/permissions.js';
+import { DEFAULT_PRICE_PER_UNIT_VOTE } from './budgetService.js';
 
 export interface CreateCampaignData {
   campaignName: string;
@@ -41,9 +42,28 @@ export interface CampaignWithoutRelations {
 export interface CampaignWithResponse extends CampaignWithoutRelations {
   surveys?: { id: string; title: string | null; questions: unknown }[];
   response: number; // Total votes received from surveys associated with the campaign
+  estimatedPrice: number;
+  influencerEstimatedPrice: number;
 }
 
 export class CampaignService {
+  private async getCurrentPricePerUnitVote(): Promise<number> {
+    const config = await prisma.budgetConfig.findUnique({
+      where: { key: 'default' },
+      select: { pricePerUnitVote: true },
+    });
+
+    return config ? Number(config.pricePerUnitVote) : DEFAULT_PRICE_PER_UNIT_VOTE;
+  }
+
+  private calculateEstimatedPrice(totalVoteNeeded: number, numberOfQuestions: number, pricePerUnitVote: number): number {
+    return Number((totalVoteNeeded * numberOfQuestions * pricePerUnitVote).toFixed(2));
+  }
+
+  private calculateInfluencerEstimatedPrice(estimatedPrice: number): number {
+    return Number((estimatedPrice * 0.5).toFixed(2));
+  }
+
   private withTotalQuestions<T extends { numberOfQuestions: number }>(campaign: T): T & { totalQuestions: number } {
     return {
       ...campaign,
@@ -141,8 +161,14 @@ export class CampaignService {
   }
 
   private async enrichCampaignsWithResponseCount<T extends { id: string; numberOfQuestions: number }>(
-    campaigns: T[]
-  ): Promise<(T & { response: number; totalQuestions: number })[]> {
+    campaigns: (T & { totalVoteNeeded: number })[],
+    pricePerUnitVote: number,
+  ): Promise<(T & {
+    response: number;
+    totalQuestions: number;
+    estimatedPrice: number;
+    influencerEstimatedPrice: number;
+  })[]> {
     const campaignIds = campaigns.map((c) => c.id);
     const counts = await prisma.surveyResponse.groupBy({
       by: ['campaignId'],
@@ -150,11 +176,16 @@ export class CampaignService {
       _count: { id: true },
     });
     const countMap = new Map(counts.map((c) => [c.campaignId, c._count.id]));
-    return campaigns.map((c) => ({
-      ...c,
-      response: countMap.get(c.id) ?? 0,
-      totalQuestions: c.numberOfQuestions,
-    }));
+    return campaigns.map((c) => {
+      const estimatedPrice = this.calculateEstimatedPrice(c.totalVoteNeeded, c.numberOfQuestions, pricePerUnitVote);
+      return {
+        ...c,
+        response: countMap.get(c.id) ?? 0,
+        totalQuestions: c.numberOfQuestions,
+        estimatedPrice,
+        influencerEstimatedPrice: this.calculateInfluencerEstimatedPrice(estimatedPrice),
+      };
+    });
   }
 
   /**
@@ -193,7 +224,8 @@ export class CampaignService {
         return [];
       }
 
-      return this.enrichCampaignsWithResponseCount(campaigns);
+      const pricePerUnitVote = await this.getCurrentPricePerUnitVote();
+      return this.enrichCampaignsWithResponseCount(campaigns, pricePerUnitVote);
     } catch (error: any) {
       console.error('CampaignService.getCampaignsByUserId error:', error);
 
@@ -241,7 +273,8 @@ export class CampaignService {
         },
       });
 
-      return this.enrichCampaignsWithResponseCount(campaigns);
+      const pricePerUnitVote = await this.getCurrentPricePerUnitVote();
+      return this.enrichCampaignsWithResponseCount(campaigns, pricePerUnitVote);
     } catch (error: any) {
       console.error('CampaignService.getAllCampaigns error:', error);
       
@@ -289,7 +322,8 @@ export class CampaignService {
       });
 
       if (!campaign) return null;
-      const [enriched] = await this.enrichCampaignsWithResponseCount([campaign]);
+      const pricePerUnitVote = await this.getCurrentPricePerUnitVote();
+      const [enriched] = await this.enrichCampaignsWithResponseCount([campaign], pricePerUnitVote);
       return enriched;
     } catch (error: any) {
       console.error('CampaignService.getCampaignById error:', error);

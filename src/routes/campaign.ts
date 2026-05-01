@@ -258,6 +258,42 @@ router.get('/user/:userId', async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/campaign/influencer/{id}:
+ *   get:
+ *     summary: Get single campaign by ID (influencer)
+ *     description: Influencer-only endpoint to fetch one campaign. Response includes influencerEstimatedPrice and excludes estimatedPrice.
+ *     tags: [Campaign]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Campaign ID
+ *     responses:
+ *       200:
+ *         description: Campaign retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Influencer role required
+ *       404:
+ *         description: Campaign not found
+ */
+router.get('/influencer/:id', requireAnyRole('influencer'), async (req, res, next) => {
+  try {
+    await campaignController.getByIdForInfluencer(req, res);
+  } catch (error: any) {
+    console.error('Route error in /campaign/influencer/:id:', error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    next(err);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     await campaignController.getById(req, res);
