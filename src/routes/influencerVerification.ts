@@ -2,7 +2,8 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../index.js';
-import { authenticate } from '../middleware/authMiddleware.js';
+import { authenticate, requireAnyRole } from '../middleware/authMiddleware.js';
+import { campaignController } from '../controllers/campaignController.js';
 
 const router = Router();
 
@@ -180,6 +181,73 @@ router.get('/verify-poll/status', async (req: Request, res: Response) => {
       success: false,
       message: 'An error occurred while fetching poll verification status',
     });
+  }
+});
+
+/**
+ * @swagger
+ * /api/influencer/{campaignId}/result-images:
+ *   get:
+ *     summary: List my campaign result images (alias)
+ *     description: Same as GET /api/campaign/influencer/{campaignId}/result-images.
+ *     tags: [Influencer Verification]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: campaignId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Campaign ID
+ *   post:
+ *     summary: Add campaign result image (alias)
+ *     description: 'JSON with imageUrl or multipart/form-data with one image file (same behavior as POST /api/campaign/influencer/{campaignId}/result-images).'
+ *     tags: [Influencer Verification]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: campaignId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Campaign ID
+ */
+router.get('/:campaignId/result-images', requireAnyRole('influencer'), async (req: Request, res: Response, next) => {
+  try {
+    await campaignController.listInfluencerCampaignResultImages(req, res);
+  } catch (error: unknown) {
+    console.error('Route error in GET /influencer/:campaignId/result-images:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+router.post('/:campaignId/result-images', requireAnyRole('influencer'), async (req: Request, res: Response, next) => {
+  try {
+    await campaignController.addInfluencerCampaignResultImage(req, res);
+  } catch (error: unknown) {
+    console.error('Route error in POST /influencer/:campaignId/result-images:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
+  }
+});
+
+/**
+ * @swagger
+ * /api/influencer/{campaignId}/result-images/{imageId}:
+ *   delete:
+ *     summary: Delete one of my campaign result images (alias)
+ *     description: Same as DELETE /api/campaign/influencer/{campaignId}/result-images/{imageId}.
+ *     tags: [Influencer Verification]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.delete('/:campaignId/result-images/:imageId', requireAnyRole('influencer'), async (req: Request, res: Response, next) => {
+  try {
+    await campaignController.deleteInfluencerCampaignResultImage(req, res);
+  } catch (error: unknown) {
+    console.error('Route error in DELETE /influencer/:campaignId/result-images/:imageId:', error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 

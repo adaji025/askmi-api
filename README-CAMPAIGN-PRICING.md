@@ -38,9 +38,9 @@ The fields are included in campaign objects returned by:
 - `GET /api/campaign`
 - `GET /api/campaign/mine`
 - `GET /api/campaign/user/:userId`
-- `GET /api/campaign/:id`
+- `GET /api/campaign/:campaignId`
 - `GET /api/admin/campaigns`
-- `GET /api/admin/campaigns/:id`
+- `GET /api/admin/campaigns/:campaignId`
 
 ## Example Campaign Object (Common Endpoints)
 
@@ -82,7 +82,7 @@ The fields are included in campaign objects returned by:
 
 Admin can extend a campaign's end date using:
 
-- `PATCH /api/admin/campaigns/:id/extend-end-date`
+- `PATCH /api/admin/campaigns/:campaignId/extend-end-date`
 
 ### Request Body
 

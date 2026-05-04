@@ -1,7 +1,9 @@
 import type { Request, Response } from 'express';
-import { createCampaignSchema } from '../validators/campaignValidators.js';
+import { UTApi } from 'uploadthing/server';
+import { createCampaignSchema, applyToCampaignSchema, addCampaignResultImageSchema } from '../validators/campaignValidators.js';
 import { campaignService } from '../services/campaignService.js';
 import { isAdmin } from '../types/permissions.js';
+import { parseSingleImageUpload } from '../utils/multipartSingleImage.js';
 
 export class CampaignController {
   private buildInfluencerCampaignStats(
@@ -269,14 +271,15 @@ export class CampaignController {
 
   /**
    * Get campaign by ID
-   * GET /api/campaign/:id
+   * GET /api/campaign/:campaignId
    */
   async getById(req: Request, res: Response): Promise<void> {
     try {
       // Ensure JSON content type
       res.setHeader('Content-Type', 'application/json');
       
-      const campaignId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const campaignIdParam = req.params.campaignId;
+      const campaignId = Array.isArray(campaignIdParam) ? campaignIdParam[0] : campaignIdParam;
 
       const campaign = await campaignService.getCampaignById(campaignId);
 
@@ -288,10 +291,18 @@ export class CampaignController {
         return;
       }
 
+      const formatted = this.formatCampaignForRequester(campaign, req.user?.role);
+      const resultExtras = req.user
+        ? await campaignService.getResultImagesForCampaignViewer(campaign.id, campaign.userId, {
+            userId: req.user.userId,
+            role: req.user.role,
+          })
+        : {};
+
       res.status(200).json({
         success: true,
         message: 'Campaign retrieved successfully',
-        campaign: this.formatCampaignForRequester(campaign, req.user?.role),
+        campaign: { ...formatted, ...resultExtras },
       });
     } catch (error) {
       console.error('Get campaign error:', error);
@@ -314,13 +325,14 @@ export class CampaignController {
 
   /**
    * Get campaign by ID for influencer
-   * GET /api/campaign/influencer/:id
+   * GET /api/campaign/influencer/:campaignId
    */
   async getByIdForInfluencer(req: Request, res: Response): Promise<void> {
     try {
       res.setHeader('Content-Type', 'application/json');
 
-      const campaignId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const campaignIdParam = req.params.campaignId;
+      const campaignId = Array.isArray(campaignIdParam) ? campaignIdParam[0] : campaignIdParam;
       const campaign = await campaignService.getCampaignById(campaignId);
 
       if (!campaign) {
@@ -331,10 +343,16 @@ export class CampaignController {
         return;
       }
 
+      const formatted = this.formatCampaignForRequester(campaign, 'influencer');
+      const resultExtras = await campaignService.getResultImagesForCampaignViewer(campaign.id, campaign.userId, {
+        userId: req.user!.userId,
+        role: req.user!.role,
+      });
+
       res.status(200).json({
         success: true,
         message: 'Campaign retrieved successfully',
-        campaign: this.formatCampaignForRequester(campaign, 'influencer'),
+        campaign: { ...formatted, ...resultExtras },
       });
     } catch (error) {
       console.error('Get influencer campaign by id error:', error);
@@ -350,6 +368,261 @@ export class CampaignController {
         res.status(statusCode).json({
           success: false,
           message: errorMessage,
+        });
+      }
+    }
+  }
+
+  /**
+   * Apply to campaign as influencer
+   * POST /api/campaign/apply
+   */
+  async applyToCampaign(req: Request, res: Response): Promise<void> {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+
+      const validationResult = applyToCampaignSchema.safeParse(req.body ?? {});
+
+      if (!validationResult.success) {
+        res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          errors: validationResult.error.issues,
+        });
+        return;
+      }
+
+      const influencerId = req.user!.userId;
+      const application = await campaignService.applyToCampaign(
+        validationResult.data.campaignId,
+        influencerId,
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Campaign application submitted successfully',
+        application,
+      });
+    } catch (error) {
+      console.error('Apply to campaign error:', error);
+
+      if (!res.headersSent) {
+        const knownErrorMessage = error instanceof Error ? error.message : '';
+        const knownBadRequestMessages = new Set([
+          'Campaign not found',
+          'You cannot apply to your own campaign',
+          'Campaign is not accepting applications',
+          'Campaign has ended',
+          'You have already applied to this campaign',
+        ]);
+
+        if (knownErrorMessage === 'Campaign not found') {
+          res.status(404).json({
+            success: false,
+            message: knownErrorMessage,
+          });
+          return;
+        }
+
+        if (knownBadRequestMessages.has(knownErrorMessage)) {
+          res.status(400).json({
+            success: false,
+            message: knownErrorMessage,
+          });
+          return;
+        }
+
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred while applying to campaign',
+        });
+      }
+    }
+  }
+
+  /**
+   * POST /api/campaign/influencer/:campaignId/result-images (and POST /api/influencer/:campaignId/result-images)
+   * JSON body: imageUrl (+ optional fileKey, caption) after POST /api/media/upload, or multipart/form-data with one image file (uploads to UploadThing then saves).
+   */
+  async addInfluencerCampaignResultImage(req: Request, res: Response): Promise<void> {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+
+      const campaignIdParam = req.params.campaignId;
+      const campaignId = Array.isArray(campaignIdParam) ? campaignIdParam[0] : campaignIdParam;
+      const influencerId = req.user!.userId;
+
+      const contentType = (req.headers['content-type'] || '').toLowerCase();
+      let payload: { imageUrl: string; fileKey?: string; caption?: string; surveyQuestionId?: string };
+
+      if (contentType.includes('multipart/form-data')) {
+        if (!process.env.UPLOADTHING_TOKEN) {
+          res.status(500).json({
+            success: false,
+            message: 'Server misconfiguration: UPLOADTHING_TOKEN is not set',
+          });
+          return;
+        }
+
+        try {
+          const parsedUpload = await parseSingleImageUpload(req);
+          const uploadApi = new UTApi();
+          const fileBytes = Uint8Array.from(parsedUpload.buffer);
+          const file = new File([fileBytes], parsedUpload.filename, { type: parsedUpload.mimeType });
+          const uploadResult = await uploadApi.uploadFiles(file);
+
+          if (!uploadResult.data?.url) {
+            res.status(502).json({
+              success: false,
+              message: 'Failed to upload image to UploadThing',
+            });
+            return;
+          }
+
+          payload = {
+            imageUrl: uploadResult.data.url,
+            fileKey: uploadResult.data.key || undefined,
+            surveyQuestionId: typeof req.query.surveyQuestionId === 'string'
+              ? req.query.surveyQuestionId
+              : undefined,
+          };
+        } catch (parseOrUploadError) {
+          const message = parseOrUploadError instanceof Error ? parseOrUploadError.message : 'Invalid file payload';
+          const isValidationError =
+            typeof message === 'string' &&
+            (message.includes('multipart/form-data') ||
+              message.includes('required') ||
+              message.includes('too large') ||
+              message.includes('Unsupported file type'));
+          res.status(isValidationError ? 400 : 500).json({
+            success: false,
+            message,
+          });
+          return;
+        }
+      } else {
+        const validationResult = addCampaignResultImageSchema.safeParse(req.body ?? {});
+
+        if (!validationResult.success) {
+          res.status(400).json({
+            success: false,
+            message: 'Validation error',
+            errors: validationResult.error.issues,
+            hint:
+              'This endpoint expects either (1) Content-Type multipart/form-data with one image file, or (2) application/json with {"imageUrl":"…"} (URL from POST /api/media/upload). A bare file attach without multipart/form-data is treated as JSON and imageUrl will be missing.',
+          });
+          return;
+        }
+
+        payload = validationResult.data;
+      }
+
+      const row = await campaignService.addCampaignResultImage(campaignId, influencerId, payload);
+
+      res.status(201).json({
+        success: true,
+        message: 'Result image saved successfully',
+        resultImage: row,
+      });
+    } catch (error) {
+      console.error('Add campaign result image error:', error);
+      if (!res.headersSent) {
+        const msg = error instanceof Error ? error.message : '';
+        if (msg === 'Campaign not found') {
+          res.status(404).json({ success: false, message: msg });
+          return;
+        }
+        if (msg.startsWith('You must be an approved influencer')) {
+          res.status(403).json({ success: false, message: msg });
+          return;
+        }
+        if (msg.includes('at most') && msg.includes('result images')) {
+          res.status(400).json({ success: false, message: msg });
+          return;
+        }
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred while saving the result image',
+        });
+      }
+    }
+  }
+
+  /**
+   * GET /api/campaign/influencer/:campaignId/result-images
+   */
+  async listInfluencerCampaignResultImages(req: Request, res: Response): Promise<void> {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const campaignIdParam = req.params.campaignId;
+      const campaignId = Array.isArray(campaignIdParam) ? campaignIdParam[0] : campaignIdParam;
+      const influencerId = req.user!.userId;
+      const images = await campaignService.listMyCampaignResultImages(campaignId, influencerId);
+
+      res.status(200).json({
+        success: true,
+        count: images.length,
+        resultImages: images,
+      });
+    } catch (error) {
+      console.error('List campaign result images error:', error);
+      if (!res.headersSent) {
+        const msg = error instanceof Error ? error.message : '';
+        if (msg === 'Campaign not found') {
+          res.status(404).json({ success: false, message: msg });
+          return;
+        }
+        if (msg.startsWith('You must be an approved influencer')) {
+          res.status(403).json({ success: false, message: msg });
+          return;
+        }
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred while fetching result images',
+        });
+      }
+    }
+  }
+
+  /**
+   * DELETE /api/campaign/influencer/:campaignId/result-images/:imageId
+   */
+  async deleteInfluencerCampaignResultImage(req: Request, res: Response): Promise<void> {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const imageId = Array.isArray(req.params.imageId) ? req.params.imageId[0] : req.params.imageId;
+      const influencerId = req.user!.userId;
+
+      const { fileKey } = await campaignService.deleteCampaignResultImage(imageId, influencerId);
+
+      if (fileKey && process.env.UPLOADTHING_TOKEN) {
+        try {
+          const uploadApi = new UTApi();
+          await uploadApi.deleteFiles(fileKey);
+        } catch (uploadError) {
+          console.error('UploadThing delete after DB remove:', uploadError);
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Result image removed',
+      });
+    } catch (error) {
+      console.error('Delete campaign result image error:', error);
+      if (!res.headersSent) {
+        const msg = error instanceof Error ? error.message : '';
+        if (msg === 'Result image not found') {
+          res.status(404).json({ success: false, message: msg });
+          return;
+        }
+        if (msg === 'You can only delete your own result images') {
+          res.status(403).json({ success: false, message: msg });
+          return;
+        }
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred while deleting the result image',
         });
       }
     }

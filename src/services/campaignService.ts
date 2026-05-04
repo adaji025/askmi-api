@@ -1,7 +1,9 @@
 import { prisma } from '../index.js';
-import type { SurveySource } from '@prisma/client';
+import type { CampaignResultImageReviewStatus, SurveySource } from '@prisma/client';
 import { isAdmin } from '../types/permissions.js';
 import { DEFAULT_PRICE_PER_UNIT_VOTE } from './budgetService.js';
+
+const MAX_CAMPAIGN_RESULT_IMAGES_PER_INFLUENCER = 20;
 
 export interface CreateCampaignData {
   campaignName: string;
@@ -45,6 +47,104 @@ export interface CampaignWithResponse extends CampaignWithoutRelations {
   estimatedPrice: number;
   influencerEstimatedPrice: number;
 }
+
+export interface CampaignApplicationResult {
+  id: string;
+  campaignId: string;
+  influencerId: string;
+  status: 'pending' | 'approved' | 'rejected';
+  message: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CampaignResultImageRow {
+  id: string;
+  campaignId: string;
+  influencerId: string;
+  surveyQuestionId: string | null;
+  imageUrl: string;
+  fileKey: string | null;
+  caption: string | null;
+  reviewStatus: CampaignResultImageReviewStatus;
+  reviewedVotes: number | null;
+  reviewedResponseObject: unknown | null;
+  reviewNotes: string | null;
+  reviewedByAdminId: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CampaignResultImageForViewer = {
+  id: string;
+  influencerId: string;
+  surveyQuestionId: string | null;
+  influencerName?: string;
+  imageUrl: string;
+  caption: string | null;
+  createdAt: Date;
+  reviewStatus: CampaignResultImageReviewStatus;
+  reviewedVotes: number | null;
+  reviewedResponseObject: unknown | null;
+  reviewNotes: string | null;
+  reviewedAt: Date | null;
+  reviewedByAdminId: string | null;
+  reviewerName?: string | null;
+};
+
+export type AdminCampaignResultImageListRow = CampaignResultImageRow & {
+  influencer: { id: string; fullName: string; email: string };
+  reviewedByAdmin: { id: string; fullName: string; email: string } | null;
+  campaign: { id: string; campaignName: string };
+};
+
+type CampaignResultImageReviewObject =
+  | {
+    questionType: 'multi_choice';
+    options: Array<{ optionText?: string; votes: number }>;
+  }
+  | {
+    questionType: 'yes_no';
+    votesByYesOrNo: {
+      yesVotes: number;
+      noVotes: number;
+    };
+  }
+  | {
+    questionType: 'rating_scale';
+    votesByRating: Record<string, number>;
+  };
+
+type StoredReviewEnvelope = {
+  note: string | null;
+  responseObject: CampaignResultImageReviewObject | null;
+};
+
+const decodeReviewEnvelope = (value: string | null): StoredReviewEnvelope => {
+  if (!value) {
+    return { note: null, responseObject: null };
+  }
+  try {
+    const parsed = JSON.parse(value) as Partial<StoredReviewEnvelope>;
+    return {
+      note: typeof parsed.note === 'string' || parsed.note === null ? (parsed.note ?? null) : null,
+      responseObject: (parsed.responseObject as CampaignResultImageReviewObject | null) ?? null,
+    };
+  } catch {
+    return { note: value, responseObject: null };
+  }
+};
+
+const deriveTotalResponses = (reviewObject: CampaignResultImageReviewObject): number => {
+  if (reviewObject.questionType === 'multi_choice') {
+    return reviewObject.options.reduce((sum, option) => sum + option.votes, 0);
+  }
+  if (reviewObject.questionType === 'yes_no') {
+    return reviewObject.votesByYesOrNo.yesVotes + reviewObject.votesByYesOrNo.noVotes;
+  }
+  return Object.values(reviewObject.votesByRating).reduce((sum, count) => sum + count, 0);
+};
 
 export class CampaignService {
   private async getCurrentPricePerUnitVote(): Promise<number> {
@@ -341,6 +441,373 @@ export class CampaignService {
       throw prismaError;
     }
   }
+
+  async applyToCampaign(campaignId: string, influencerId: string): Promise<CampaignApplicationResult> {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: {
+        id: true,
+        userId: true,
+        isActive: true,
+        isCompleted: true,
+        endDate: true,
+      },
+    });
+
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    if (campaign.userId === influencerId) {
+      throw new Error('You cannot apply to your own campaign');
+    }
+
+    if (!campaign.isActive || campaign.isCompleted) {
+      throw new Error('Campaign is not accepting applications');
+    }
+
+    if (campaign.endDate && campaign.endDate < new Date()) {
+      throw new Error('Campaign has ended');
+    }
+
+    const existingApplication = await prisma.campaignApplication.findUnique({
+      where: {
+        campaignId_influencerId: {
+          campaignId,
+          influencerId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingApplication) {
+      throw new Error('You have already applied to this campaign');
+    }
+
+    const application = await prisma.campaignApplication.create({
+      data: {
+        campaignId,
+        influencerId,
+        message: null,
+      },
+      select: {
+        id: true,
+        campaignId: true,
+        influencerId: true,
+        status: true,
+        message: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      ...application,
+      status: application.status as 'pending' | 'approved' | 'rejected',
+    };
+  }
+
+  private async assertApprovedInfluencerForCampaign(campaignId: string, influencerId: string): Promise<void> {
+    const application = await prisma.campaignApplication.findUnique({
+      where: {
+        campaignId_influencerId: {
+          campaignId,
+          influencerId,
+        },
+      },
+      select: { status: true },
+    });
+    if (!application || application.status !== 'approved') {
+      throw new Error('You must be an approved influencer on this campaign to manage result images');
+    }
+  }
+
+  async addCampaignResultImage(
+    campaignId: string,
+    influencerId: string,
+    input: { imageUrl: string; fileKey?: string; caption?: string; surveyQuestionId?: string },
+  ): Promise<CampaignResultImageRow> {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { id: true },
+    });
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    await this.assertApprovedInfluencerForCampaign(campaignId, influencerId);
+
+    const existingCount = await prisma.campaignResultImage.count({
+      where: { campaignId, influencerId },
+    });
+    if (existingCount >= MAX_CAMPAIGN_RESULT_IMAGES_PER_INFLUENCER) {
+      throw new Error(
+        `You can upload at most ${MAX_CAMPAIGN_RESULT_IMAGES_PER_INFLUENCER} result images per campaign`,
+      );
+    }
+
+    return prisma.campaignResultImage.create({
+      data: {
+        campaignId,
+        influencerId,
+        surveyQuestionId: input.surveyQuestionId ?? null,
+        imageUrl: input.imageUrl,
+        fileKey: input.fileKey ?? null,
+        caption: input.caption ?? null,
+        reviewStatus: 'pending',
+      },
+    });
+  }
+
+  async listMyCampaignResultImages(campaignId: string, influencerId: string): Promise<CampaignResultImageRow[]> {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { id: true },
+    });
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    await this.assertApprovedInfluencerForCampaign(campaignId, influencerId);
+
+    return prisma.campaignResultImage.findMany({
+      where: { campaignId, influencerId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /** Returns fileKey when the row had one (caller may delete from UploadThing). */
+  async deleteCampaignResultImage(imageId: string, influencerId: string): Promise<{ fileKey: string | null }> {
+    const row = await prisma.campaignResultImage.findUnique({
+      where: { id: imageId },
+      select: { id: true, influencerId: true, fileKey: true },
+    });
+    if (!row) {
+      throw new Error('Result image not found');
+    }
+    if (row.influencerId !== influencerId) {
+      throw new Error('You can only delete your own result images');
+    }
+
+    await prisma.campaignResultImage.delete({ where: { id: imageId } });
+    return { fileKey: row.fileKey };
+  }
+
+  /**
+   * Extra fields merged onto campaign JSON for GET by id.
+   * Admin or campaign owner sees all influencers' images; approved influencers see only their own as `myResultImages`.
+   */
+  async getResultImagesForCampaignViewer(
+    campaignId: string,
+    campaignOwnerUserId: string,
+    viewer: { userId: string; role: string },
+  ): Promise<{ resultImages?: CampaignResultImageForViewer[]; myResultImages?: CampaignResultImageForViewer[] }> {
+    if (isAdmin(viewer.role) || (viewer.role === 'brand' && viewer.userId === campaignOwnerUserId)) {
+      const rows = await prisma.campaignResultImage.findMany({
+        where: { campaignId },
+        orderBy: [{ influencerId: 'asc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          influencerId: true,
+          surveyQuestionId: true,
+          imageUrl: true,
+          caption: true,
+          createdAt: true,
+          reviewStatus: true,
+          reviewedVotes: true,
+          reviewNotes: true,
+          reviewedAt: true,
+          reviewedByAdminId: true,
+          influencer: { select: { fullName: true } },
+          reviewedByAdmin: { select: { fullName: true } },
+        },
+      });
+      return {
+        resultImages: rows.map((row) => {
+          const decoded = decodeReviewEnvelope(row.reviewNotes);
+          return {
+            id: row.id,
+            influencerId: row.influencerId,
+            surveyQuestionId: row.surveyQuestionId,
+            influencerName: row.influencer.fullName,
+            imageUrl: row.imageUrl,
+            caption: row.caption,
+            createdAt: row.createdAt,
+            reviewStatus: row.reviewStatus,
+            reviewedVotes: row.reviewedVotes,
+            reviewedResponseObject: decoded.responseObject,
+            reviewNotes: decoded.note,
+            reviewedAt: row.reviewedAt,
+            reviewedByAdminId: row.reviewedByAdminId,
+            reviewerName: row.reviewedByAdmin?.fullName ?? null,
+          };
+        }),
+      };
+    }
+
+    if (viewer.role === 'influencer') {
+      const application = await prisma.campaignApplication.findUnique({
+        where: {
+          campaignId_influencerId: {
+            campaignId,
+            influencerId: viewer.userId,
+          },
+        },
+        select: { status: true },
+      });
+      if (!application || application.status !== 'approved') {
+        return {};
+      }
+
+      const rows = await prisma.campaignResultImage.findMany({
+        where: { campaignId, influencerId: viewer.userId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          influencerId: true,
+          surveyQuestionId: true,
+          imageUrl: true,
+          caption: true,
+          createdAt: true,
+          reviewStatus: true,
+          reviewedVotes: true,
+          reviewNotes: true,
+          reviewedAt: true,
+          reviewedByAdminId: true,
+          reviewedByAdmin: { select: { fullName: true } },
+        },
+      });
+      return {
+        myResultImages: rows.map((row) => {
+          const decoded = decodeReviewEnvelope(row.reviewNotes);
+          return {
+            id: row.id,
+            influencerId: row.influencerId,
+            surveyQuestionId: row.surveyQuestionId,
+            imageUrl: row.imageUrl,
+            caption: row.caption,
+            createdAt: row.createdAt,
+            reviewStatus: row.reviewStatus,
+            reviewedVotes: row.reviewedVotes,
+            reviewedResponseObject: decoded.responseObject,
+            reviewNotes: decoded.note,
+            reviewedAt: row.reviewedAt,
+            reviewedByAdminId: row.reviewedByAdminId,
+            reviewerName: row.reviewedByAdmin?.fullName ?? null,
+          };
+        }),
+      };
+    }
+
+    return {};
+  }
+
+  async adminListCampaignResultImages(filters: {
+    campaignId?: string;
+    influencerId?: string;
+    reviewStatus?: CampaignResultImageReviewStatus;
+  }): Promise<AdminCampaignResultImageListRow[]> {
+    const where: {
+      campaignId?: string;
+      influencerId?: string;
+      reviewStatus?: CampaignResultImageReviewStatus;
+    } = {};
+    if (filters.campaignId) where.campaignId = filters.campaignId;
+    if (filters.influencerId) where.influencerId = filters.influencerId;
+    if (filters.reviewStatus) where.reviewStatus = filters.reviewStatus;
+
+    const rows = await prisma.campaignResultImage.findMany({
+      where,
+      take: 500,
+      orderBy: [{ campaignId: 'asc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        campaignId: true,
+        influencerId: true,
+        surveyQuestionId: true,
+        imageUrl: true,
+        fileKey: true,
+        caption: true,
+        reviewStatus: true,
+        reviewedVotes: true,
+        reviewNotes: true,
+        reviewedByAdminId: true,
+        reviewedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        influencer: { select: { id: true, fullName: true, email: true } },
+        reviewedByAdmin: { select: { id: true, fullName: true, email: true } },
+        campaign: { select: { id: true, campaignName: true } },
+      },
+    });
+
+    return rows.map((row) => {
+      const decoded = decodeReviewEnvelope(row.reviewNotes);
+      return {
+        ...row,
+        reviewNotes: decoded.note,
+        reviewedResponseObject: decoded.responseObject,
+        influencer: row.influencer,
+        reviewedByAdmin: row.reviewedByAdmin,
+        campaign: row.campaign,
+      };
+    });
+  }
+
+  async adminReviewCampaignResultImage(
+    imageId: string,
+    adminUserId: string,
+    input: {
+      reviewStatus: CampaignResultImageReviewStatus;
+      reviewedVotes?: number | null;
+      reviewedResponseObject?: CampaignResultImageReviewObject | null;
+      reviewNotes?: string | null;
+    },
+  ): Promise<CampaignResultImageRow> {
+    const existing = await prisma.campaignResultImage.findUnique({
+      where: { id: imageId },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new Error('Result image not found');
+    }
+
+    let reviewedVotes: number | null = null;
+    let reviewedResponseObject: CampaignResultImageReviewObject | null = null;
+    let reviewNotes: string | null = input.reviewNotes ?? null;
+    const now = new Date();
+
+    if (input.reviewStatus === 'approved') {
+      if (!input.reviewedResponseObject) {
+        throw new Error('reviewedResponseObject is required when reviewStatus is approved');
+      }
+      reviewedResponseObject = input.reviewedResponseObject;
+      reviewedVotes = deriveTotalResponses(input.reviewedResponseObject);
+    } else if (input.reviewStatus === 'rejected') {
+      reviewedVotes = null;
+      reviewedResponseObject = null;
+    } else {
+      reviewedVotes = null;
+      reviewedResponseObject = null;
+    }
+
+    return prisma.campaignResultImage.update({
+      where: { id: imageId },
+      data: {
+        reviewStatus: input.reviewStatus,
+        reviewedVotes,
+        reviewNotes: JSON.stringify({
+          note: reviewNotes,
+          responseObject: reviewedResponseObject,
+        } satisfies StoredReviewEnvelope),
+        reviewedByAdminId: adminUserId,
+        reviewedAt: now,
+      },
+    });
+  }
+
 }
 
 export const campaignService = new CampaignService();

@@ -8,9 +8,13 @@ router.use(authenticate);
 router.use(authorize('admin'));
 
 const computeInfluencerMetrics = (influencer: {
-  surveys: Array<{
-    campaignId: string | null;
-    surveyResponses: Array<{ createdAt: Date }>;
+  surveyResponses: Array<{
+    campaignId: string;
+    createdAt: Date;
+  }>;
+  campaignApplications: Array<{
+    campaignId: string;
+    status: 'pending' | 'approved' | 'rejected';
   }>;
   pollVerification: { status: 'submitted' | 'approved' | 'rejected' } | null;
 }) => {
@@ -19,26 +23,25 @@ const computeInfluencerMetrics = (influencer: {
   const currentWindowStart = now - sevenDaysMs;
   const previousWindowStart = now - (2 * sevenDaysMs);
 
-  const totalCampaign = new Set(
-    influencer.surveys
-      .map((survey) => survey.campaignId)
-      .filter((campaignId): campaignId is string => Boolean(campaignId)),
-  ).size;
+  const subscribedCampaignIds = new Set(
+    influencer.campaignApplications
+      .filter((application) => application.status === 'approved')
+      .map((application) => application.campaignId),
+  );
+  const totalCampaign = subscribedCampaignIds.size;
 
-  const totalVotes = influencer.surveys.reduce((sum, survey) => sum + survey.surveyResponses.length, 0);
-  const averageVote = influencer.surveys.length > 0
-    ? Number((totalVotes / influencer.surveys.length).toFixed(2))
+  const totalVotes = influencer.surveyResponses.length;
+  const averageVote = totalCampaign > 0
+    ? Number((totalVotes / totalCampaign).toFixed(2))
     : 0;
 
-  const recentVotes = influencer.surveys.reduce((sum, survey) => (
-    sum + survey.surveyResponses.filter((response) => new Date(response.createdAt).getTime() >= currentWindowStart).length
-  ), 0);
-  const previousVotes = influencer.surveys.reduce((sum, survey) => (
-    sum + survey.surveyResponses.filter((response) => {
-      const createdAt = new Date(response.createdAt).getTime();
-      return createdAt >= previousWindowStart && createdAt < currentWindowStart;
-    }).length
-  ), 0);
+  const recentVotes = influencer.surveyResponses.filter(
+    (response) => new Date(response.createdAt).getTime() >= currentWindowStart,
+  ).length;
+  const previousVotes = influencer.surveyResponses.filter((response) => {
+    const createdAt = new Date(response.createdAt).getTime();
+    return createdAt >= previousWindowStart && createdAt < currentWindowStart;
+  }).length;
 
   let deviationTrend: 'up' | 'down' | 'stable' = 'stable';
   if (recentVotes > previousVotes) deviationTrend = 'up';
@@ -62,6 +65,31 @@ const computeInfluencerMetrics = (influencer: {
     deviationTrend,
     ocrAccuracy,
   };
+};
+
+const buildResponseMapByInfluencer = (
+  rows: Array<{ userId: string | null; campaignId: string; createdAt: Date }>,
+): Map<string, Array<{ campaignId: string; createdAt: Date }>> => {
+  const map = new Map<string, Array<{ campaignId: string; createdAt: Date }>>();
+  for (const row of rows) {
+    if (!row.userId) continue;
+    const existing = map.get(row.userId) ?? [];
+    existing.push({ campaignId: row.campaignId, createdAt: row.createdAt });
+    map.set(row.userId, existing);
+  }
+  return map;
+};
+
+const buildApplicationMapByInfluencer = (
+  rows: Array<{ influencerId: string; campaignId: string; status: 'pending' | 'approved' | 'rejected' }>,
+): Map<string, Array<{ campaignId: string; status: 'pending' | 'approved' | 'rejected' }>> => {
+  const map = new Map<string, Array<{ campaignId: string; status: 'pending' | 'approved' | 'rejected' }>>();
+  for (const row of rows) {
+    const existing = map.get(row.influencerId) ?? [];
+    existing.push({ campaignId: row.campaignId, status: row.status });
+    map.set(row.influencerId, existing);
+  }
+  return map;
 };
 
 /**
@@ -163,21 +191,6 @@ router.get('/', async (req: Request, res: Response) => {
             status: true,
           },
         },
-        _count: {
-          select: {
-            surveys: true,
-          },
-        },
-        surveys: {
-          select: {
-            campaignId: true,
-            surveyResponses: {
-              select: {
-                createdAt: true,
-              },
-            },
-          },
-        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -185,18 +198,46 @@ router.get('/', async (req: Request, res: Response) => {
     });
 
     const totalInfluencers = influencers.length;
+    const influencerIds = influencers.map((influencer) => influencer.id);
+    const responseRows = await prisma.surveyResponse.findMany({
+      where: {
+        userId: { in: influencerIds },
+      },
+      select: {
+        userId: true,
+        campaignId: true,
+        createdAt: true,
+      },
+    });
+    const applicationRows = await prisma.campaignApplication.findMany({
+      where: {
+        influencerId: { in: influencerIds },
+      },
+      select: {
+        influencerId: true,
+        campaignId: true,
+        status: true,
+      },
+    });
+    const responsesByInfluencer = buildResponseMapByInfluencer(responseRows);
+    const applicationsByInfluencer = buildApplicationMapByInfluencer(applicationRows);
+
     const pendingApprovals = influencers.filter((influencer) => !influencer.isApproved).length;
     const flaggedRisk = influencers.filter((influencer) => influencer.pollVerification?.status === 'rejected').length;
 
     const enrichedInfluencers = influencers.map((influencer) => {
       return {
         ...influencer,
-        ...computeInfluencerMetrics(influencer),
+        ...computeInfluencerMetrics({
+          pollVerification: influencer.pollVerification,
+          surveyResponses: responsesByInfluencer.get(influencer.id) ?? [],
+          campaignApplications: applicationsByInfluencer.get(influencer.id) ?? [],
+        }),
       };
     });
 
     const topPerformerRecord = enrichedInfluencers.reduce<typeof enrichedInfluencers[number] | null>((currentTop, influencer) => {
-      if (!currentTop || influencer._count.surveys > currentTop._count.surveys) {
+      if (!currentTop || influencer.totalCampaign > currentTop.totalCampaign) {
         return influencer;
       }
       return currentTop;
@@ -207,7 +248,7 @@ router.get('/', async (req: Request, res: Response) => {
         id: topPerformerRecord.id,
         fullName: topPerformerRecord.fullName,
         email: topPerformerRecord.email,
-        totalSurveys: topPerformerRecord._count.surveys,
+        totalSurveys: topPerformerRecord.totalCampaign,
       }
       : null;
 
@@ -219,7 +260,7 @@ router.get('/', async (req: Request, res: Response) => {
         flaggedRisk,
         topPerformer,
       },
-      influencers: enrichedInfluencers.map(({ pollVerification, _count, surveys, ...influencer }) => influencer),
+      influencers: enrichedInfluencers.map(({ pollVerification, ...influencer }) => influencer),
     });
   } catch (error) {
     console.error('Get influencers error:', error);
@@ -311,16 +352,6 @@ router.get('/:id', async (req: Request, res: Response) => {
             status: true,
           },
         },
-        surveys: {
-          select: {
-            campaignId: true,
-            surveyResponses: {
-              select: {
-                createdAt: true,
-              },
-            },
-          },
-        },
       },
     });
 
@@ -331,14 +362,37 @@ router.get('/:id', async (req: Request, res: Response) => {
       });
     }
 
+    const responseRows = await prisma.surveyResponse.findMany({
+      where: {
+        userId: influencer.id,
+      },
+      select: {
+        campaignId: true,
+        createdAt: true,
+      },
+    });
+    const applicationRows = await prisma.campaignApplication.findMany({
+      where: {
+        influencerId: influencer.id,
+      },
+      select: {
+        campaignId: true,
+        status: true,
+      },
+    });
+
     return res.status(200).json({
       success: true,
       influencer: {
         ...(() => {
-          const { pollVerification, surveys, ...baseInfluencer } = influencer;
+          const { pollVerification, ...baseInfluencer } = influencer;
           return {
             ...baseInfluencer,
-            ...computeInfluencerMetrics({ pollVerification, surveys }),
+            ...computeInfluencerMetrics({
+              pollVerification,
+              surveyResponses: responseRows,
+              campaignApplications: applicationRows,
+            }),
           };
         })(),
       },

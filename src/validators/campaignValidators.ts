@@ -103,3 +103,67 @@ export const createCampaignSchema = z.object({
   message: 'numberOfQuestions and totalQuestions must match when both are provided',
   path: ['totalQuestions'],
 });
+
+export const applyToCampaignSchema = z.object({
+  campaignId: z.string().min(1, 'campaignId is required'),
+});
+
+/** After uploading via POST /api/media/upload, persist the returned URL (and optional key). */
+export const addCampaignResultImageSchema = z.object({
+  imageUrl: z.string().url('imageUrl must be a valid URL'),
+  fileKey: z.string().min(1).optional(),
+  caption: z.string().max(500).optional(),
+  surveyQuestionId: z.string().min(1).max(200).optional(),
+});
+
+export const campaignResultImageReviewStatusSchema = z.enum(['pending', 'approved', 'rejected']);
+
+const multiChoiceReviewSchema = z.object({
+  questionType: z.literal('multi_choice'),
+  options: z.array(z.object({
+    optionText: z.string().min(1).optional(),
+    votes: z.number().int().min(0),
+  })).min(1),
+});
+
+const yesNoReviewSchema = z.object({
+  questionType: z.literal('yes_no'),
+  votesByYesOrNo: z.object({
+    yesVotes: z.number().int().min(0),
+    noVotes: z.number().int().min(0),
+  }),
+});
+
+const ratingScaleReviewSchema = z.object({
+  questionType: z.literal('rating_scale'),
+  votesByRating: z.record(z.string(), z.number().int().min(0)),
+});
+
+export const campaignResultImageReviewObjectSchema = z.discriminatedUnion('questionType', [
+  multiChoiceReviewSchema,
+  yesNoReviewSchema,
+  ratingScaleReviewSchema,
+]);
+
+export const adminReviewCampaignResultImageSchema = z
+  .object({
+    reviewStatus: campaignResultImageReviewStatusSchema,
+    reviewedVotes: z.number().int().min(0).optional().nullable(),
+    reviewedResponseObject: campaignResultImageReviewObjectSchema.optional().nullable(),
+    reviewNotes: z.string().max(2000).optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.reviewStatus === 'approved' && !data.reviewedResponseObject) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'reviewedResponseObject is required when reviewStatus is approved',
+        path: ['reviewedResponseObject'],
+      });
+    }
+  });
+
+export const adminListCampaignResultImagesQuerySchema = z.object({
+  campaignId: z.string().min(1).optional(),
+  influencerId: z.string().min(1).optional(),
+  reviewStatus: campaignResultImageReviewStatusSchema.optional(),
+});

@@ -167,6 +167,7 @@ Content-Type: application/json
 ## Feature Documentation
 
 - [Admin Seeder](README-ADMIN-SEEDER.md) - Seed admin user and preferences
+- [Campaign result images](README-CAMPAIGN-RESULT-IMAGES.md) - Influencer proof uploads, admin review, recorded votes (UploadThing + DB)
 - [Budget API](README-BUDGET.md) - Price per unit vote, budget estimate
 - [Brand Statistics](README-BRAND-STATISTICS.md) - Dashboard stats
 - [Analytics](README-ANALYTICS.md) - Full analytics endpoint
