@@ -307,6 +307,16 @@ async function attachResultImagesToInfluencers<T extends { id: string; influence
   });
 }
 
+function applyReviewedVotesAsDelivered<T extends { targetVotes: number; deliveredVote: number; deviation: number; reviewedDeliveredVote?: number }>(
+  campaigns: T[],
+): T[] {
+  return campaigns.map((campaign) => ({
+    ...campaign,
+    deliveredVote: campaign.reviewedDeliveredVote ?? campaign.deliveredVote,
+    deviation: (campaign.reviewedDeliveredVote ?? campaign.deliveredVote) - campaign.targetVotes,
+  }));
+}
+
 /**
  * @swagger
  * /api/admin/campaigns:
@@ -396,6 +406,7 @@ router.get('/campaigns', async (req: Request, res: Response) => {
       approvedInfluencerIdsByCampaignId.get(campaign.id) ?? [],
     ));
     campaignWithMetrics = await attachResultImagesToInfluencers(campaignWithMetrics);
+    campaignWithMetrics = applyReviewedVotesAsDelivered(campaignWithMetrics);
 
     const statistics = {
       totalCampaign: campaignWithMetrics.length,
@@ -523,6 +534,7 @@ router.get('/campaigns/:campaignId', async (req: Request, res: Response) => {
       approvedInfluencerIds,
     );
     [campaignWithMetrics] = await attachResultImagesToInfluencers([campaignWithMetrics]);
+    [campaignWithMetrics] = applyReviewedVotesAsDelivered([campaignWithMetrics]);
 
     return res.status(200).json({
       success: true,
