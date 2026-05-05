@@ -134,6 +134,13 @@ const options: swaggerJsdoc.Options = {
               format: 'date-time',
               description: 'User last update date',
             },
+            instagramDemographics: {
+              type: 'object',
+              nullable: true,
+              description:
+                'Instagram audience demographics (e.g. ageRange, language, gender, primaryLocation); null if never set',
+              additionalProperties: true,
+            },
           },
         },
         RegisterRequest: {

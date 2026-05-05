@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { authenticate, authorize } from '../middleware/authMiddleware.js';
 import { prisma } from '../index.js';
 import { updateInstagramDemographicsSchema } from '../validators/preferenceValidators.js';
+import { DEFAULT_INSTAGRAM_DEMOGRAPHICS } from '../constants/defaultInstagramDemographics.js';
 
 const router = Router();
 
@@ -202,6 +203,7 @@ router.get('/', async (req: Request, res: Response) => {
         isApproved: true,
         createdAt: true,
         updatedAt: true,
+        instagramDemographics: true,
         pollVerification: {
           select: {
             status: true,
@@ -280,7 +282,10 @@ router.get('/', async (req: Request, res: Response) => {
         flaggedRisk,
         topPerformer,
       },
-      influencers: enrichedInfluencers.map(({ pollVerification, ...influencer }) => influencer),
+      influencers: enrichedInfluencers.map(({ pollVerification, ...influencer }) => ({
+        ...influencer,
+        instagramDemographics: influencer.instagramDemographics ?? DEFAULT_INSTAGRAM_DEMOGRAPHICS,
+      })),
     });
   } catch (error) {
     console.error('Get influencers error:', error);
@@ -385,7 +390,7 @@ router.put('/:id/instagram-demographics', async (req: Request, res: Response) =>
       });
     }
 
-    const current = (existingUser.instagramDemographics ?? {}) as Record<string, Prisma.InputJsonValue>;
+    const current = (existingUser.instagramDemographics ?? DEFAULT_INSTAGRAM_DEMOGRAPHICS) as Record<string, Prisma.InputJsonValue>;
     const nextValue = {
       ...current,
       ...validationResult.data,
@@ -495,6 +500,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         isApproved: true,
         createdAt: true,
         updatedAt: true,
+        instagramDemographics: true,
         pollVerification: {
           select: {
             status: true,
@@ -538,9 +544,10 @@ router.get('/:id', async (req: Request, res: Response) => {
       success: true,
       influencer: {
         ...(() => {
-          const { pollVerification, ...baseInfluencer } = influencer;
+          const { pollVerification, instagramDemographics, ...baseInfluencer } = influencer;
           return {
             ...baseInfluencer,
+            instagramDemographics: instagramDemographics ?? DEFAULT_INSTAGRAM_DEMOGRAPHICS,
             ...computeInfluencerMetrics({
               pollVerification,
               reviewedImageVotes: responseRows

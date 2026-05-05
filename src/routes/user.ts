@@ -5,6 +5,7 @@ import type { Request, Response } from 'express';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../index.js';
 import { updatePreferencesSchema, updateInstagramDemographicsSchema } from '../validators/preferenceValidators.js';
+import { DEFAULT_INSTAGRAM_DEMOGRAPHICS } from '../constants/defaultInstagramDemographics.js';
 
 const router = Router();
 
@@ -292,7 +293,7 @@ router.put('/instagram-demographics', requireAnyRole('influencer'), async (req: 
       });
     }
 
-    const current = (existingUser.instagramDemographics ?? {}) as Record<string, Prisma.InputJsonValue>;
+    const current = (existingUser.instagramDemographics ?? DEFAULT_INSTAGRAM_DEMOGRAPHICS) as Record<string, Prisma.InputJsonValue>;
     const nextValue = {
       ...current,
       ...validationResult.data,
