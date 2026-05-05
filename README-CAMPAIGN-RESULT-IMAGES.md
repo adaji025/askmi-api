@@ -25,7 +25,7 @@ Use either prefix; behavior is the same.
 
 ### Option A — One request (multipart file)
 
-`POST` to either path in the table with **`Content-Type: multipart/form-data`** and **one image file** (any field name). The server uploads to UploadThing and saves the campaign result row. Optional **caption** is only supported with Option B (JSON body).
+`POST` to either path in the table with **`Content-Type: multipart/form-data`** and **one image file** (any field name). The server uploads to UploadThing and saves the campaign result row. Optional **surveyQuestionId** can be provided as query (`?surveyQuestionId=...`) in multipart mode.
 
 ### Option B — Two steps (generic media upload, then JSON)
 
@@ -72,7 +72,7 @@ Delete removes the DB row; if `fileKey` was stored, UploadThing delete is attemp
 
 ### `GET /api/campaign/:campaignId`
 
-- **Admin** or **brand who owns the campaign**: extra field **`resultImages`** — all influencers’ images, each with `id`, `influencerId`, `influencerName`, `imageUrl`, `caption`, `createdAt`, plus **`reviewStatus`**, **`reviewedVotes`**, **`reviewNotes`**, **`reviewedAt`**, **`reviewedByAdminId`**, **`reviewerName`** (admin display name when set).
+- **Admin** or **brand who owns the campaign**: extra field **`resultImages`** — all influencers’ images, each with `id`, `influencerId`, `influencerName`, `surveyQuestionId`, `imageUrl`, `caption`, `createdAt`, plus **`reviewStatus`**, **`reviewedVotes`**, **`reviewedResponseObject`**, **`reviewNotes`**, **`reviewedAt`**, **`reviewedByAdminId`**, **`reviewerName`** (admin display name when set).
 - **Approved influencer** on that campaign: **`myResultImages`** — same review fields for their own uploads (no `influencerName` on each row).
 
 Other roles do not receive these arrays.
@@ -86,9 +86,10 @@ Same visibility rules as above for the authenticated influencer (and admin/owner
 `GET /api/admin/campaigns` and `GET /api/admin/campaigns/:campaignId` include:
 
 - **`reviewedDeliveredVote`** — sum of **`reviewedVotes`** on images with **`reviewStatus: approved`** for that campaign (admin-recorded votes from proofs).
+- **`deliveredVote`** — currently mirrored from `reviewedDeliveredVote` in admin campaigns endpoints.
 - On each **`influencers`** entry:
   - **`influencerId`**, **`reviewedVotesTotal`** — same sum but only that influencer’s approved images
-  - **`resultImages`** — each item includes `id`, `imageUrl`, `caption`, `createdAt`, `reviewStatus`, `reviewedVotes`, `reviewNotes`, `reviewedAt`, `reviewedByAdminId`
+  - **`resultImages`** — each item includes `id`, `surveyQuestionId`, `imageUrl`, `caption`, `createdAt`, `reviewStatus`, `reviewedVotes`, `reviewedResponseObject`, `reviewNotes`, `reviewedAt`, `reviewedByAdminId`
 
 ## Admin review (record votes from proof)
 
@@ -123,11 +124,36 @@ Same visibility rules as above for the authenticated influencer (and admin/owner
    - **`approved`**: **`reviewedResponseObject`** is required (for `multi_choice`, `yes_no`, or `rating_scale`) and `reviewedVotes` is auto-derived by summing votes in the object.
    - **`rejected`** or **`pending`**: recorded vote data is cleared; you may still send **`reviewNotes`**.
 
+### Additional `reviewedResponseObject` shapes
+
+```json
+{
+  "questionType": "yes_no",
+  "votesByYesOrNo": {
+    "yesVotes": 18,
+    "noVotes": 12
+  }
+}
+```
+
+```json
+{
+  "questionType": "rating_scale",
+  "votesByRating": {
+    "1": 2,
+    "2": 4,
+    "3": 8,
+    "4": 10,
+    "5": 6
+  }
+}
+```
+
 ## Data model (Prisma)
 
 - Model: **`CampaignResultImage`**
 - Core fields: `campaignId`, `influencerId`, optional `surveyQuestionId`, `imageUrl`, optional `fileKey`, optional `caption`, timestamps
-- Review: **`reviewStatus`** (`pending` | `approved` | `rejected`), optional **`reviewedVotes`**, optional **`reviewNotes`**, optional **`reviewedByAdminId`** / **`reviewedAt`**
+- Review: **`reviewStatus`** (`pending` | `approved` | `rejected`), optional **`reviewedVotes`** (derived from `reviewedResponseObject` when approved), optional **`reviewedResponseObject`**, optional **`reviewNotes`**, optional **`reviewedByAdminId`** / **`reviewedAt`**
 - Relations: **`Campaign`**, **`User`** (uploader, `CampaignResultImageUploader`), optional **`User`** (reviewer admin, `CampaignResultImageReviewer`); cascade on campaign/uploader delete, `SetNull` on reviewer delete
 
 After schema changes:

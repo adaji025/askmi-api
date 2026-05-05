@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { authenticate, authorize, requireOwnershipOrRole, requireAnyRole, requirePermission } from '../middleware/authMiddleware.js';
 import { Permission } from '../types/permissions.js';
 import type { Request, Response } from 'express';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../index.js';
-import { updatePreferencesSchema } from '../validators/preferenceValidators.js';
+import { updatePreferencesSchema, updateInstagramDemographicsSchema } from '../validators/preferenceValidators.js';
 
 const router = Router();
 
@@ -64,6 +65,7 @@ router.get('/profile', async (req: Request, res: Response) => {
         companySize: true,
         industry: true,
         fullName: true,
+        instagramDemographics: true,
         countryCode: true,
         lang: true,
         role: true,
@@ -170,6 +172,7 @@ router.put('/profile', async (req: Request, res: Response) => {
         companySize: true,
         industry: true,
         fullName: true,
+        instagramDemographics: true,
         countryCode: true,
         lang: true,
         role: true,
@@ -189,6 +192,138 @@ router.put('/profile', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'An error occurred while updating profile',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/user/instagram-demographics:
+ *   put:
+ *     summary: Update influencer Instagram demographics
+ *     description: Influencer-only endpoint to update demographics used for profile targeting.
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ageRange:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     label:
+ *                       type: string
+ *                       example: 25 - 34
+ *                     percentage:
+ *                       type: number
+ *                       example: 62.5
+ *               language:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     label:
+ *                       type: string
+ *                       example: English
+ *                     percentage:
+ *                       type: number
+ *                       example: 91
+ *               gender:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     label:
+ *                       type: string
+ *                       example: Female
+ *                     percentage:
+ *                       type: number
+ *                       example: 54
+ *               primaryLocation:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     countryCode:
+ *                       type: string
+ *                       example: IL
+ *                     countryName:
+ *                       type: string
+ *                       example: Israel
+ *                     percentage:
+ *                       type: number
+ *                       example: 77
+ *     responses:
+ *       200:
+ *         description: Instagram demographics updated successfully
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Forbidden - Influencer role required
+ *       404:
+ *         description: User not found
+ */
+router.put('/instagram-demographics', requireAnyRole('influencer'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const validationResult = updateInstagramDemographicsSchema.safeParse(req.body ?? {});
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validationResult.error.issues,
+      });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, instagramDemographics: true },
+    });
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const current = (existingUser.instagramDemographics ?? {}) as Record<string, Prisma.InputJsonValue>;
+    const nextValue = {
+      ...current,
+      ...validationResult.data,
+      primaryLocation: validationResult.data.primaryLocation ?? current.primaryLocation,
+    } as Prisma.InputJsonValue;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        instagramDemographics: nextValue,
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        instagramDemographics: true,
+        updatedAt: true,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Instagram demographics updated successfully',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('Update instagram demographics error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating instagram demographics',
     });
   }
 });
@@ -402,6 +537,7 @@ router.get('/', authorize('admin'), async (req: Request, res: Response) => {
         companySize: true,
         industry: true,
         fullName: true,
+        instagramDemographics: true,
         countryCode: true,
         lang: true,
         role: true,
@@ -474,6 +610,7 @@ router.get('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
         companySize: true,
         industry: true,
         fullName: true,
+        instagramDemographics: true,
         countryCode: true,
         lang: true,
         role: true,
@@ -600,6 +737,7 @@ router.put('/:id', requireOwnershipOrRole('id', 'admin'), async (req: Request, r
         companySize: true,
         industry: true,
         fullName: true,
+        instagramDemographics: true,
         countryCode: true,
         lang: true,
         role: true,
@@ -774,6 +912,7 @@ router.get('/admin/pending-influencers', authorize('admin'), async (req: Request
         companySize: true,
         industry: true,
         fullName: true,
+        instagramDemographics: true,
         countryCode: true,
         lang: true,
         role: true,

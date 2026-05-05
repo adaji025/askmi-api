@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
+import type { Prisma } from '@prisma/client';
 import { authenticate, authorize } from '../middleware/authMiddleware.js';
 import { prisma } from '../index.js';
+import { updateInstagramDemographicsSchema } from '../validators/preferenceValidators.js';
 
 const router = Router();
 
@@ -8,8 +10,10 @@ router.use(authenticate);
 router.use(authorize('admin'));
 
 const computeInfluencerMetrics = (influencer: {
-  surveyResponses: Array<{
+  reviewedImageVotes: Array<{
     campaignId: string;
+    reviewedVotes: number;
+    reviewedAt: Date | null;
     createdAt: Date;
   }>;
   campaignApplications: Array<{
@@ -30,18 +34,25 @@ const computeInfluencerMetrics = (influencer: {
   );
   const totalCampaign = subscribedCampaignIds.size;
 
-  const totalVotes = influencer.surveyResponses.length;
-  const averageVote = totalCampaign > 0
-    ? Number((totalVotes / totalCampaign).toFixed(2))
-    : 0;
+  const totalVotes = influencer.reviewedImageVotes.reduce(
+    (sum, row) => sum + row.reviewedVotes,
+    0,
+  );
+  // Requested behavior: expose delivered total on averageVote field.
+  const averageVote = Number(totalVotes.toFixed(2));
 
-  const recentVotes = influencer.surveyResponses.filter(
-    (response) => new Date(response.createdAt).getTime() >= currentWindowStart,
-  ).length;
-  const previousVotes = influencer.surveyResponses.filter((response) => {
-    const createdAt = new Date(response.createdAt).getTime();
-    return createdAt >= previousWindowStart && createdAt < currentWindowStart;
-  }).length;
+  const recentVotes = influencer.reviewedImageVotes
+    .filter((row) => {
+      const at = new Date(row.reviewedAt ?? row.createdAt).getTime();
+      return at >= currentWindowStart;
+    })
+    .reduce((sum, row) => sum + row.reviewedVotes, 0);
+  const previousVotes = influencer.reviewedImageVotes
+    .filter((row) => {
+      const at = new Date(row.reviewedAt ?? row.createdAt).getTime();
+      return at >= previousWindowStart && at < currentWindowStart;
+    })
+    .reduce((sum, row) => sum + row.reviewedVotes, 0);
 
   let deviationTrend: 'up' | 'down' | 'stable' = 'stable';
   if (recentVotes > previousVotes) deviationTrend = 'up';
@@ -68,14 +79,19 @@ const computeInfluencerMetrics = (influencer: {
 };
 
 const buildResponseMapByInfluencer = (
-  rows: Array<{ userId: string | null; campaignId: string; createdAt: Date }>,
-): Map<string, Array<{ campaignId: string; createdAt: Date }>> => {
-  const map = new Map<string, Array<{ campaignId: string; createdAt: Date }>>();
+  rows: Array<{ influencerId: string; campaignId: string; reviewedVotes: number | null; reviewedAt: Date | null; createdAt: Date }>,
+): Map<string, Array<{ campaignId: string; reviewedVotes: number; reviewedAt: Date | null; createdAt: Date }>> => {
+  const map = new Map<string, Array<{ campaignId: string; reviewedVotes: number; reviewedAt: Date | null; createdAt: Date }>>();
   for (const row of rows) {
-    if (!row.userId) continue;
-    const existing = map.get(row.userId) ?? [];
-    existing.push({ campaignId: row.campaignId, createdAt: row.createdAt });
-    map.set(row.userId, existing);
+    if (row.reviewedVotes === null) continue;
+    const existing = map.get(row.influencerId) ?? [];
+    existing.push({
+      campaignId: row.campaignId,
+      reviewedVotes: row.reviewedVotes,
+      reviewedAt: row.reviewedAt,
+      createdAt: row.createdAt,
+    });
+    map.set(row.influencerId, existing);
   }
   return map;
 };
@@ -199,13 +215,17 @@ router.get('/', async (req: Request, res: Response) => {
 
     const totalInfluencers = influencers.length;
     const influencerIds = influencers.map((influencer) => influencer.id);
-    const responseRows = await prisma.surveyResponse.findMany({
+    const responseRows = await prisma.campaignResultImage.findMany({
       where: {
-        userId: { in: influencerIds },
+        influencerId: { in: influencerIds },
+        reviewStatus: 'approved',
+        reviewedVotes: { not: null },
       },
       select: {
-        userId: true,
+        influencerId: true,
         campaignId: true,
+        reviewedVotes: true,
+        reviewedAt: true,
         createdAt: true,
       },
     });
@@ -230,7 +250,7 @@ router.get('/', async (req: Request, res: Response) => {
         ...influencer,
         ...computeInfluencerMetrics({
           pollVerification: influencer.pollVerification,
-          surveyResponses: responsesByInfluencer.get(influencer.id) ?? [],
+          reviewedImageVotes: responsesByInfluencer.get(influencer.id) ?? [],
           campaignApplications: applicationsByInfluencer.get(influencer.id) ?? [],
         }),
       };
@@ -267,6 +287,134 @@ router.get('/', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'An error occurred while fetching influencers',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/user/admin/influencers/{id}/instagram-demographics:
+ *   put:
+ *     summary: Update influencer Instagram demographics (Admin only)
+ *     description: Same partial merge rules as PUT /api/user/instagram-demographics for the authenticated influencer.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Influencer user ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ageRange:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     label:
+ *                       type: string
+ *                     percentage:
+ *                       type: number
+ *               language:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     label:
+ *                       type: string
+ *                     percentage:
+ *                       type: number
+ *               gender:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     label:
+ *                       type: string
+ *                     percentage:
+ *                       type: number
+ *               primaryLocation:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     countryCode:
+ *                       type: string
+ *                     countryName:
+ *                       type: string
+ *                     percentage:
+ *                       type: number
+ *     responses:
+ *       200:
+ *         description: Instagram demographics updated successfully
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Forbidden - Admin role required
+ *       404:
+ *         description: Influencer not found
+ */
+router.put('/:id/instagram-demographics', async (req: Request, res: Response) => {
+  try {
+    const influencerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const validationResult = updateInstagramDemographicsSchema.safeParse(req.body ?? {});
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validationResult.error.issues,
+      });
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: { id: influencerId, role: 'influencer' },
+      select: { id: true, instagramDemographics: true },
+    });
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Influencer not found',
+      });
+    }
+
+    const current = (existingUser.instagramDemographics ?? {}) as Record<string, Prisma.InputJsonValue>;
+    const nextValue = {
+      ...current,
+      ...validationResult.data,
+      primaryLocation: validationResult.data.primaryLocation ?? current.primaryLocation,
+    } as Prisma.InputJsonValue;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: influencerId },
+      data: { instagramDemographics: nextValue },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        instagramDemographics: true,
+        updatedAt: true,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Instagram demographics updated successfully',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('Admin update influencer instagram demographics error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while updating instagram demographics',
     });
   }
 });
@@ -362,12 +510,17 @@ router.get('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    const responseRows = await prisma.surveyResponse.findMany({
+    const responseRows = await prisma.campaignResultImage.findMany({
       where: {
-        userId: influencer.id,
+        influencerId: influencer.id,
+        reviewStatus: 'approved',
+        reviewedVotes: { not: null },
       },
       select: {
+        influencerId: true,
         campaignId: true,
+        reviewedVotes: true,
+        reviewedAt: true,
         createdAt: true,
       },
     });
@@ -390,7 +543,14 @@ router.get('/:id', async (req: Request, res: Response) => {
             ...baseInfluencer,
             ...computeInfluencerMetrics({
               pollVerification,
-              surveyResponses: responseRows,
+              reviewedImageVotes: responseRows
+                .filter((row): row is typeof row & { reviewedVotes: number } => row.reviewedVotes !== null)
+                .map((row) => ({
+                  campaignId: row.campaignId,
+                  reviewedVotes: row.reviewedVotes,
+                  reviewedAt: row.reviewedAt,
+                  createdAt: row.createdAt,
+                })),
               campaignApplications: applicationRows,
             }),
           };

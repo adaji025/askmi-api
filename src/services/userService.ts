@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { prisma } from '../index.js';
-import type { UserRole, AuthProvider } from '@prisma/client';
+import type { UserRole, AuthProvider, Prisma } from '@prisma/client';
 
 export interface CreateUserData {
   email: string;
@@ -25,6 +25,7 @@ export interface UserWithoutPassword {
   companySize: string | null;
   industry: string | null;
   fullName: string;
+  instagramDemographics: unknown | null;
   countryCode: string | null;
   lang: string;
   role: UserRole;
@@ -39,6 +40,20 @@ interface UpdateAuthProviderData {
 }
 
 export class UserService {
+  private readonly defaultInstagramDemographics = {
+    ageRange: [
+      { label: '25 - 34', percentage: 100 },
+    ],
+    language: [
+      { label: 'English', percentage: 100 },
+    ],
+    gender: [
+      { label: 'Female', percentage: 100 },
+    ],
+    primaryLocation: [
+      { countryCode: 'IL', countryName: 'Israel', percentage: 100 },
+    ],
+  };
   /**
    * Find user by email
    */
@@ -113,6 +128,9 @@ export class UserService {
           phoneNumber: data.phoneNumber || null,
           company: data.company || null,
           fullName: data.fullName,
+          ...(data.role === 'influencer'
+            ? { instagramDemographics: this.defaultInstagramDemographics as Prisma.InputJsonValue }
+            : {}),
           countryCode: data.countryCode || null,
           password: hashedPassword,
           role: (data.role || 'brand') as UserRole,
@@ -129,6 +147,7 @@ export class UserService {
           companySize: true,
           industry: true,
           fullName: true,
+          instagramDemographics: true,
           countryCode: true,
           lang: true,
           role: true,

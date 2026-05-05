@@ -54,6 +54,7 @@ model User {
   companySize String?  @default("")
   industry    String?  @default("")
   fullName    String
+  instagramDemographics Json?
   countryCode String?
   lang        String   @default("en")
   timeZone          String?  @default("UTC")
