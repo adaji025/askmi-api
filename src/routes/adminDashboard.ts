@@ -38,7 +38,10 @@ router.get('/stats', async (req: Request, res: Response) => {
   try {
     const chartYearRaw = Array.isArray(req.query.chartYear) ? req.query.chartYear[0] : req.query.chartYear;
     const chartYearParsed = typeof chartYearRaw === 'string' ? Number(chartYearRaw) : undefined;
-    const chartYear = Number.isFinite(chartYearParsed) ? chartYearParsed : new Date().getFullYear();
+    const chartYear: number =
+      typeof chartYearParsed === 'number' && Number.isFinite(chartYearParsed)
+        ? chartYearParsed
+        : new Date().getFullYear();
 
     const [
       totalUsers,
